@@ -40,6 +40,11 @@ as mudanças ficam no README, em `documentacao/`, `tests/` e `rust/`.
 - Teste real em TV LG webOS: saída `probe_exit=42`; cópia por `cat` sobre SSH porque `scp` não existe na TV;
   executável removido de `/tmp` após o teste.
 
+## 2026-10-24: arte e símbolos ficam em Python (issue #13)
+- Protótipo `tests/bench/art/`: o `make_art.py` em Rust é 12× mais rápido (0,9 s contra 11 s), mas não reproduz as
+  imagens publicadas (98,4% a 99,7% dos pixels a até 8 níveis; o critério era 99,9%), e o texto do banner fica ~1 px
+  deslocado. É regressão de fidelidade: fica em Python, assim como o `make_symbols.py`.
+
 ## 2026-10-24: Android e interfaces ficam como estão (issues #15, #16, #17)
 - Protótipo JNI (`tests/bench/jni/`): `Recs.franchise` ficou 14,8× mais lento em Rust e `HomeData.parseWeather`
   4,7× mais rápido, num caminho que roda a cada 30 minutos. Somando +357 KB por processador no APK, o NDK no build e o
@@ -125,4 +130,4 @@ as mudanças ficam no README, em `documentacao/`, `tests/` e `rust/`.
 - Saída idêntica à do Python. Ganho de 2,5× a 9× no tempo e de 3× a 4× na memória (veja `rust.md`).
 
 ### Pendente
-- Item 13 (veja `rust.md`). O 14 foi revertido (#22); 15 a 17 não serão feitos (regressão).
+- Nada da conversão. 12 itens em Rust; 13 a 17 avaliados e mantidos como estão (regressão), o 14 revertido (#22).
