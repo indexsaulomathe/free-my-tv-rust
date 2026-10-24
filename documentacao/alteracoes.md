@@ -1,7 +1,13 @@
 # Registro de alterações do fork
 
 Tudo o que este fork muda em relação ao upstream (`simbasjungles/free-my-tv`). O código original não foi alterado;
-as mudanças ficam em `documentacao/`, `tests/` e `rust/`.
+as mudanças ficam no README, em `documentacao/`, `tests/` e `rust/`.
+
+## 2026-10-24: README do fork Rust (issue #24)
+- README reescrito para identificar o repositório como fork independente baseado em `simbasjungles/free-my-tv`.
+- Instalação e desenvolvimento agora apontam para este fork; comandos usam placeholders para endereços e perfis.
+- Estado da conversão, limites dos testes em TV e simulador, crédito ao upstream e reversão documentados.
+- Vínculo de fork no GitHub mantido; nenhum código de app ou firmware foi alterado.
 
 ## 2026-10-24: probe dinâmico ARMv7 para webOS (issue #20)
 - Probe Rust liga contra biblioteca substituta local com `getpid@GLIBC_2.4`, sem copiar bibliotecas da TV.
