@@ -8,17 +8,19 @@
 //!     freemytv tizen-install IP [--uninstall]                                     # tizen/install.py
 //!     freemytv translate-check                                                    # tools/translate.py --check
 //!     freemytv photos [IP] PHOTOS_OR_FOLDERS...                                   # tools/photos.py
+//!     freemytv make-logic                                                         # web/logic_wasm.js (new)
 //!
 //! Run it anywhere inside the repository (or pass --root DIR).
 
 use freemytv_core::config::Config;
 use freemytv_core::{
-    homebrew, package, photos, tizen_install, translate, webapp, webos_install, zones, Error, Repo,
+    homebrew, package, photos, tizen_install, translate, wasm, webapp, webos_install, zones, Error,
+    Repo,
 };
 use std::path::{Path, PathBuf};
 use std::{env, fs, process};
 
-const USAGE: &str = "usage: freemytv <webos-build|tizen-build|homebrew-repo|make-zones|webos-install|tizen-install|translate-check|photos> [options]
+const USAGE: &str = "usage: freemytv <webos-build|tizen-build|homebrew-repo|make-zones|webos-install|tizen-install|translate-check|photos|make-logic> [options]
   webos-build   [--generic | --config FILE] [--preview] [--out FILE]
   tizen-build   [--generic | --config FILE] [--preview] [--out FILE]
   homebrew-repo FILE.ipk [--out FILE]
@@ -26,6 +28,7 @@ const USAGE: &str = "usage: freemytv <webos-build|tizen-build|homebrew-repo|make
   webos-install IP [--uninstall]   installs FreeMyTV-webos.ipk on an LG TV (builds it first if missing)
   tizen-install IP [--uninstall]   installs the signed FreeMyTV-tizen.wgt on a Samsung TV
   translate-check                  validates every catalogue against the code (exit 1 on problems)
+  make-logic                       builds rust/crates/freemytv-logic for WebAssembly into web/logic_wasm.js
   photos [IP] FILES...             sends photos to an Android/Google TV (screensaver, My Photos), with adb
   --root DIR    the repository (default: found from the current folder)";
 
@@ -366,6 +369,38 @@ fn photos_command(list: Vec<String>) -> i32 {
     photos::send(&mut adb, list)
 }
 
+fn make_logic(repo: &Repo) -> Result<(), Error> {
+    let status = process::Command::new("cargo")
+        .args([
+            "build",
+            "--release",
+            "--target",
+            "wasm32-unknown-unknown",
+            "-p",
+            "freemytv-logic",
+        ])
+        .current_dir(repo.path("rust"))
+        .status()
+        .map_err(|e| Error(format!("cargo: {e}")))?;
+    if !status.success() {
+        return Err(Error(
+            "the WebAssembly build failed (rustup target add wasm32-unknown-unknown?)".into(),
+        ));
+    }
+    let wasm =
+        fs::read(repo.path("rust/target/wasm32-unknown-unknown/release/freemytv_logic.wasm"))?;
+    let js = wasm::logic_js(&wasm)?;
+    let out = repo.path("web/logic_wasm.js");
+    fs::write(&out, &js)?;
+    println!(
+        "Wrote {} ({} KB of WebAssembly, {} KB as text)",
+        out.display(),
+        kb(wasm::strip(&wasm)?.len()),
+        kb(js.len())
+    );
+    Ok(())
+}
+
 fn run() -> Result<(), Error> {
     let mut all: Vec<String> = env::args().skip(1).collect();
     if all.is_empty() || matches!(all[0].as_str(), "-h" | "--help" | "help") {
@@ -392,6 +427,7 @@ fn run() -> Result<(), Error> {
         "webos-install" => webos_install(&repo, &args),
         "tizen-install" => tizen_install(&repo, &args),
         "translate-check" => translate_check(&repo),
+        "make-logic" => make_logic(&repo),
         other => Err(Error(format!("unknown command {other:?}\n{USAGE}"))),
     }
 }

@@ -285,18 +285,18 @@ mod tests {
 
     #[test]
     fn ip_check_matches_python() {
-        assert!(valid_ip("192.168.4.9"));
+        assert!(valid_ip("192.168.1.50"));
         assert!(valid_ip("999.1.1.1")); // the Python regex takes it too
-        assert!(!valid_ip("192.168.4"));
-        assert!(!valid_ip("192.168.4.9; rm -rf /"));
+        assert!(!valid_ip("192.168.1"));
+        assert!(!valid_ip("192.168.1.50; rm -rf /"));
         assert!(!valid_ip("tv.local"));
         assert!(!valid_ip("1.2.3.1234"));
     }
 
     #[test]
     fn key_path_is_the_pythons() {
-        let p = key_path(Path::new("/home/x"), "192.168.4.9");
-        assert_eq!(p, Path::new("/home/x/.ssh/freemytv_webos_192_168_4_9"));
+        let p = key_path(Path::new("/home/x"), "192.168.1.50");
+        assert_eq!(p, Path::new("/home/x/.ssh/freemytv_webos_192_168_1_50"));
     }
 
     #[test]

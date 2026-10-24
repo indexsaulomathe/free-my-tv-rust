@@ -13,6 +13,8 @@ fi
 if [ "$what" = all ] || [ "$what" = web ]; then
   echo "== Web app (tests/web)"
   node --test tests/web/*.test.js
+  echo "== Web app with the Rust logic (WebAssembly)"
+  FMTV_WASM=1 node --test tests/web/*.test.js
 fi
 if [ "$what" = all ] || [ "$what" = rust ]; then
   echo "== Rust (rust/)"

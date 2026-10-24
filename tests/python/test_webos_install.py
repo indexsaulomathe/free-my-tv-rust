@@ -12,7 +12,7 @@ install = load('webos/install.py', 'webos_install')
 
 def test_key_path(monkeypatch, tmp_path):
     monkeypatch.setenv('HOME', str(tmp_path))
-    assert install.key_path('192.168.4.9') == os.path.join(str(tmp_path), '.ssh', 'freemytv_webos_192_168_4_9')
+    assert install.key_path('192.168.1.50') == os.path.join(str(tmp_path), '.ssh', 'freemytv_webos_192_168_1_50')
 
 
 def test_ssh_options_pin_the_port_and_user(monkeypatch):

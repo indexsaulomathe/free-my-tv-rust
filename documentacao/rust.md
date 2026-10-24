@@ -9,7 +9,7 @@ em [`alteracoes.md`](alteracoes.md).
 | Fase | O que | Status |
 |---|---|---|
 | 1. Ferramentas | Scripts Python de build, instalação e geração | Em andamento: 12 de 13 itens feitos |
-| 2. Lógica | Dados, formatação e regras (`web/data.js`, `HomeData`, `Recs`, `HomeMode`) → Rust compilado para WASM e JNI | A fazer |
+| 2. Lógica | Dados, formatação e regras (`web/data.js`, `HomeData`, `Recs`, `HomeMode`) → Rust compilado para WASM e JNI | Em andamento: web feito (#14), Android a fazer (#15) |
 | 3. Interface | `home.js`, `HomeView` e afins | A avaliar: a interface depende do motor da TV, e o ganho precisa ser medido antes |
 
 ### Limites conhecidos
@@ -25,7 +25,9 @@ em [`alteracoes.md`](alteracoes.md).
 rust/
 ├── Cargo.toml                    workspace
 └── crates/
-    ├── freemytv-core/            biblioteca: config, i18n, webapp, package, homebrew, zones, json
+    ├── freemytv-core/            biblioteca: config, i18n, webapp, package, homebrew, zones, json, instaladores,
+    │                             traduções, fotos, empacotamento do WASM
+    ├── freemytv-logic/           a lógica pura do app web, compilada para WebAssembly (fase 2)
     └── freemytv-cli/             o comando `freemytv`
         └── examples/peak_rss.rs  mede o pico de memória para o benchmark
 ```
@@ -47,7 +49,7 @@ rust/
 | 11 | [validação de traduções](issues/11-translate-check.md) | `translate.py --check` | `freemytv translate-check` | ✅ |
 | 12 | [fotos](issues/12-photos.md) | `tools/photos.py` | `freemytv photos` | ✅ (testado com um adb simulado) |
 | 13 | [arte e símbolos](issues/13-arte.md) | `make_art.py`, `make_symbols.py` | — | ⏳ baixa prioridade |
-| 14 | [lógica web](issues/14-logica-web.md) | `web/data.js`, `strings.js` | WASM | ⏳ fase 2 |
+| 14 | [lógica web](issues/14-logica-web.md) | `web/data.js`, `strings.js` | `freemytv-logic` (WASM) | ✅ |
 | 15 | [lógica Android](issues/15-logica-android.md) | `HomeData`, `Recs`, `HomeMode` | JNI | ⏳ fase 2 |
 | 16 | [interface web](issues/16-ui-web.md) | `home.js` | — | ⏳ fase 3 |
 | 17 | [interface Android](issues/17-ui-android.md) | `HomeView` etc. | — | ⏳ fase 3 |
@@ -108,3 +110,48 @@ mais lenta que o Python (111 ms), porque recompilava as regex a cada chamada; ag
 - A memória cai de 3 a 4 vezes.
 - Na prática, ninguém percebe 100 ms num build. O ganho real da fase 1 é **um binário único sem dependências**
   (não precisa de Python), arquivos idênticos e a base de código para as fases 2 e 3.
+
+## Fase 2: a lógica do app web em WebAssembly (issue #14)
+
+**O que foi para o Rust** (`rust/crates/freemytv-logic`): as funções puras de `web/data.js` e `web/strings.js`, que
+não dependem do navegador:
+
+| JavaScript | Rust | O que faz |
+|---|---|---|
+| `parseWeather`, `localTime` | `parse_weather`, `local_time` | lê a previsão do Open-Meteo |
+| `Data.condition`, `Data.symbol` | `condition`, `symbol` | palavras e ícone do tempo pelo código WMO |
+| `franchise`, `service`, `bestBackdrop` | `franchise`, `service`, `best_backdrop` | regras das sugestões do TMDB |
+| `pluralOf` (sem Intl), escolha da forma em `plural` | `plural_category`, `plural_form` | plurais CLDR |
+| `base`, `localeOf`, `resolve` | `base`, `locale_of`, `resolve` | escolha do idioma e do locale |
+
+O que continua em JavaScript: rede (XHR), localStorage, `Intl` (nomes de meses, AM/PM, números), o desenho da tela
+(`home.js`) e o acesso à TV (`tv.js`).
+
+**Como funciona:**
+- `freemytv make-logic` compila o crate para `wasm32-unknown-unknown`, tira as seções de depuração e grava
+  `web/logic_wasm.js` (o WASM em base64, carregado com os outros scripts, sem XHR: funciona em `file://`). O arquivo
+  gerado vai no repositório, como o `zones.js`, então o build da TV não precisa de Rust.
+- `web/logic.js` carrega o módulo (assíncrono) e expõe `Logic`. Cada função do `data.js`/`strings.js` pergunta ao
+  `Logic` primeiro; enquanto o módulo carrega, nas TVs sem WebAssembly (webOS 3/4, Tizen 3/4) e para entradas que o
+  JavaScript converteria ou em que daria erro, `Logic` responde `undefined` e o JavaScript faz a conta.
+- Testado na TV LG (webOS 10.3, Chrome 120): `Logic.ready()` verdadeiro e as respostas certas em português.
+
+**Paridade:** a suíte web inteira (29 testes) roda duas vezes, em JavaScript e com o WASM (`FMTV_WASM=1`), e
+`tests/web/logic.test.js` compara as duas versões em centenas de entradas, inclusive estranhas (NaN, tipos errados,
+listas vazias, datas fora do intervalo): tudo igual.
+
+**Desempenho (medido, `node tests/bench/logic_bench.js`, V8 do Node 26):**
+
+| Chamada | JavaScript | Rust (WASM) | Rust / JS |
+|---|---:|---:|---:|
+| `Data.condition` | 217 ns | 627 ns | 2,9× |
+| `Data.symbol` | 78 ns | 468 ns | 6,0× |
+| `I18N.plural` (ru, sem Intl) | 1,8 µs | 7,3 µs | 4,1× |
+| `parseWeather` (48 h) | 9,4 µs | 31,5 µs | 3,4× |
+| `franchise` | 154 ns | 1,8 µs | 11,4× |
+
+**Leitura honesta:** o WASM é **de 3 a 11 vezes mais lento** que o JavaScript nessas funções. Elas são pequenas,
+e passar textos entre JS e WASM (codificar em UTF-8, copiar, decodificar, e `JSON.stringify`/`parse` no clima) custa
+mais que a conta. Na prática ninguém percebe: o pior caso são 31 µs a cada 30 minutos, e um quadro tem 16 ms. O
+pacote cresce 90 KB (`.ipk` de 663 para 753 KB) e o módulo reserva cerca de 1 MB de memória na TV. O ganho é ter
+uma única fonte da lógica em Rust, testada, que o Android (#15, JNI) pode usar também.

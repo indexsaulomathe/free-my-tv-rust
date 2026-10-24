@@ -16,8 +16,17 @@ function catalogues() {
   return out;
 }
 
+/** WebAssembly that answers at once, so the Rust is in use from the first call (FMTV_WASM=1). */
+const SyncWasm = {
+  instantiate(bytes, imports) {
+    const instance = new WebAssembly.Instance(new WebAssembly.Module(bytes), imports);
+    return {then(ok) { ok({module: null, instance}); }};
+  }
+};
+
 /**
- * A browser-like context with the given scripts (names in web/) loaded in order.
+ * A browser-like context with the given scripts (names in web/) loaded in order, after logic.js. With FMTV_WASM=1 (or
+ * opts.wasm), logic_wasm.js too: the Rust answers what it can, as on a TV with WebAssembly.
  * opts.config: window.CONFIG; opts.zone: the TV's time zone; opts.language: navigator.language;
  * opts.storage: localStorage's initial items.
  */
@@ -58,9 +67,11 @@ function load(scripts, opts = {}) {
     CONFIG: opts.config,
     I18N_CATALOGUES: catalogues()
   };
+  const wasm = opts.wasm === undefined ? process.env.FMTV_WASM === '1' : opts.wasm;
+  if (wasm) Object.assign(ctx, {WebAssembly: SyncWasm, TextEncoder, TextDecoder, atob});
   ctx.window = ctx;
   vm.createContext(ctx);
-  for (const name of scripts) {
+  for (const name of (wasm ? ['logic_wasm.js', 'logic.js'] : ['logic.js']).concat(scripts)) {
     const file = name === 'zones.js' && opts.zones ? null : path.join(ROOT, 'web', name);
     const code = file ? fs.readFileSync(file, 'utf8') : 'var ZONES = ' + JSON.stringify(opts.zones) + ';';
     vm.runInContext(code, ctx, {filename: name});
@@ -70,4 +81,21 @@ function load(scripts, opts = {}) {
   return ctx;
 }
 
-module.exports = {load, ROOT};
+/** data.js's own internal functions, taken from its source and run in a context (JS or Rust behind Logic). */
+function internal(ctx, names) {
+  const src = fs.readFileSync(path.join(ROOT, 'web', 'data.js'), 'utf8');
+  const take = (start) => {
+    let i = src.indexOf('{', start), depth = 0;
+    for (; i < src.length; i++) {
+      if (src[i] === '{' || src[i] === '[') depth++;
+      if (src[i] === '}' || src[i] === ']') { depth--; if (depth === 0) return src.slice(start, i + 1); }
+    }
+    throw new Error('unbalanced');
+  };
+  const services = src.indexOf('var SERVICES = [');
+  let code = src.slice(services, src.indexOf('];', services) + 2) + '\n';
+  for (const n of names) code += take(src.indexOf('function ' + n + '(')) + '\n';
+  return vm.runInContext('(function () {' + code + 'return {' + names.map((n) => n + ': ' + n).join(', ') + '}; })()', ctx);
+}
+
+module.exports = {load, internal, ROOT};

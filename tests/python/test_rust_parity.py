@@ -150,7 +150,7 @@ def test_photos(tmp_path, mode):
     for p in ['b praia.jpg', 'a#1?.PNG', '.oculta.jpg', 'nota.txt', 'sub/c.webp']:
         (pics / p).parent.mkdir(parents=True, exist_ok=True)
         (pics / p).write_bytes(os.urandom(100 + len(p)))
-    args = ['192.168.4.20', str(pics) + '/', str(pics / 'nota.txt')]
+    args = ['192.168.1.50', str(pics) + '/', str(pics / 'nota.txt')]
     out = {}
     for who, cmd in (('py', ['python3', os.path.join(ROOT, 'tools', 'photos.py')]), ('rs', [BIN, 'photos'])):
         log = tmp_path / (who + '.log')
