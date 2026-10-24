@@ -1,0 +1,14 @@
+[package]
+name = "freemytv-core"
+description = "Free My TV's build tools in Rust: config.properties, the web app's files and the LG/Samsung packages"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+flate2 = "1.1"
+regex = "1.13"
+serde_json = { version = "1.0", features = ["preserve_order"] }
+sha2 = "0.11"
+tar = "0.4"
+zip = { version = "9", default-features = false, features = ["deflate"] }

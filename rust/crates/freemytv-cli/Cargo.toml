@@ -1,0 +1,13 @@
+[package]
+name = "freemytv-cli"
+description = "The freemytv command: builds and installs Free My TV for LG and Samsung TVs"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[[bin]]
+name = "freemytv"
+path = "src/main.rs"
+
+[dependencies]
+freemytv-core = { path = "../freemytv-core" }
