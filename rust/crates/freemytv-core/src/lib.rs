@@ -10,7 +10,6 @@
 //! | [`zones`] | `tools/make_zones.py` |
 //! | [`photos`] | `tools/photos.py` |
 //! | [`translate`] | `tools/translate.py --check` |
-//! | [`wasm`] | (new) packs `freemytv-logic`'s WebAssembly into `web/logic_wasm.js` |
 //! | [`webos_install`] | `webos/install.py` |
 //! | [`tizen_install`] | `tizen/install.py` |
 //! | [`json`] | Python's `json.dumps`, so every file comes out byte for byte the same |
@@ -23,7 +22,6 @@ pub mod package;
 pub mod photos;
 pub mod tizen_install;
 pub mod translate;
-pub mod wasm;
 pub mod webapp;
 pub mod webos_install;
 pub mod zones;

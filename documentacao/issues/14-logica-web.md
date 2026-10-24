@@ -1,7 +1,7 @@
 ---
 title: "Converter lógica do app web (data.js, strings.js) para Rust/WASM"
 labels: [fase-2-logica, conversao-rust]
-status: feito
+status: revertido
 ---
 
 **Origem:** web/data.js (Place, Prefs, formatação, parsing de clima/cotações/TMDB), web/strings.js

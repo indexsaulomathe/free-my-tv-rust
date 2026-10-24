@@ -98,16 +98,12 @@ var Data = (function () {
 
   /** "2026-10-20T18:31" at the location (Open-Meteo's local time) → epoch ms. */
   function localTime(iso, offsetSeconds) {
-    var t = Logic.localTime(iso, offsetSeconds);
-    if (t !== undefined) return t;
     var m = /^(\d+)-(\d+)-(\d+)T(\d+):(\d+)/.exec(iso || '');
     if (!m) return 0;
     return Date.UTC(+m[1], m[2] - 1, +m[3], +m[4], +m[5]) - offsetSeconds * 1000;
   }
 
   function parseWeather(o) {
-    var parsed = Logic.weather(o, Date.now());
-    if (parsed !== undefined) return parsed;
     if (!o || !o.current) return null;
     var off = o.utc_offset_seconds || 0, now = Date.now();
     var w = {
@@ -247,8 +243,6 @@ var Data = (function () {
 
   /** "… Amazon Channel" is sold inside another app; Apple TV is only the streaming service (350; 2 is the store). */
   function service(providerName, providerId) {
-    var found = Logic.service(providerName, providerId);
-    if (found !== undefined) return found < 0 ? null : SERVICES[found];
     var n = (providerName || '').toLowerCase();
     if (n.indexOf(' channel') >= 0) return null;
     for (var i = 0; i < SERVICES.length; i++) {
@@ -283,8 +277,6 @@ var Data = (function () {
   }
 
   function franchise(title) {
-    var f = Logic.franchise(title);
-    if (f !== undefined) return f;
     var t = (title || '').toLowerCase(), cut = t.indexOf(':');
     if (cut < 0) cut = t.indexOf(' - ');
     return (cut > 0 ? t.slice(0, cut) : t).replace(/^\s+|\s+$/g, '');
@@ -336,8 +328,6 @@ var Data = (function () {
 
   /** The best backdrop: no text over it, the largest, then the best rated. */
   function bestBackdrop(images) {
-    var found = Logic.backdrop(images);
-    if (found !== undefined) return found;
     var list = images && images.backdrops, best = null, score = -1;
     for (var i = 0; list && i < list.length; i++) {
       var b = list[i];
@@ -584,8 +574,6 @@ var Data = (function () {
       return m < 60 ? trf('{n} min ago', {n: m}) : trf('{n} h ago', {n: h});
     },
     condition: function (code, day) {
-      var key = Logic.condition(code, day);
-      if (key !== undefined) return key ? I18N.text(key) : '';
       if (code === undefined || code === null || code < 0) return '';
       if (code === 0) return day ? tr('Clear') : tr('night|Clear');
       if (code === 1) return day ? tr('Mostly Sunny') : tr('Mostly Clear');
@@ -599,8 +587,6 @@ var Data = (function () {
       return tr('Rain');
     },
     symbol: function (code, day) {
-      var name = Logic.symbol(code, day);
-      if (name !== undefined) return name;
       if (code <= 1) return day ? 'sunny' : 'clear_night';
       if (code === 2) return day ? 'partly_cloudy_day' : 'partly_cloudy_night';
       if (code === 3) return 'cloud';

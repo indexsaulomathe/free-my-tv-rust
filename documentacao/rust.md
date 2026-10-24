@@ -9,7 +9,7 @@ em [`alteracoes.md`](alteracoes.md).
 | Fase | O que | Status |
 |---|---|---|
 | 1. Ferramentas | Scripts Python de build, instalação e geração | Em andamento: 12 de 13 itens feitos |
-| 2. Lógica | Dados, formatação e regras (`web/data.js`, `HomeData`, `Recs`, `HomeMode`) → Rust compilado para WASM e JNI | Em andamento: web feito (#14), Android a fazer (#15) |
+| 2. Lógica | Dados, formatação e regras (`web/data.js`, `HomeData`, `Recs`, `HomeMode`) → Rust compilado para WASM e JNI | Web avaliado e revertido (#14, #22: regressão); Android a avaliar (#15) |
 | 3. Interface | `home.js`, `HomeView` e afins | A avaliar: a interface depende do motor da TV, e o ganho precisa ser medido antes |
 
 ### Limites conhecidos
@@ -26,8 +26,7 @@ rust/
 ├── Cargo.toml                    workspace
 └── crates/
     ├── freemytv-core/            biblioteca: config, i18n, webapp, package, homebrew, zones, json, instaladores,
-    │                             traduções, fotos, empacotamento do WASM
-    ├── freemytv-logic/           a lógica pura do app web, compilada para WebAssembly (fase 2)
+    │                             traduções, fotos
     └── freemytv-cli/             o comando `freemytv`
         └── examples/peak_rss.rs  mede o pico de memória para o benchmark
 ```
@@ -49,7 +48,7 @@ rust/
 | 11 | [validação de traduções](issues/11-translate-check.md) | `translate.py --check` | `freemytv translate-check` | ✅ |
 | 12 | [fotos](issues/12-photos.md) | `tools/photos.py` | `freemytv photos` | ✅ (testado com um adb simulado) |
 | 13 | [arte e símbolos](issues/13-arte.md) | `make_art.py`, `make_symbols.py` | — | ⏳ baixa prioridade |
-| 14 | [lógica web](issues/14-logica-web.md) | `web/data.js`, `strings.js` | `freemytv-logic` (WASM) | ✅ |
+| 14 | [lógica web](issues/14-logica-web.md) | `web/data.js`, `strings.js` | `freemytv-logic` (WASM) | ↩️ revertido (#22): regressão, fica em JS |
 | 15 | [lógica Android](issues/15-logica-android.md) | `HomeData`, `Recs`, `HomeMode` | JNI | ⏳ fase 2 |
 | 16 | [interface web](issues/16-ui-web.md) | `home.js` | — | ⏳ fase 3 |
 | 17 | [interface Android](issues/17-ui-android.md) | `HomeView` etc. | — | ⏳ fase 3 |
@@ -111,7 +110,21 @@ mais lenta que o Python (111 ms), porque recompilava as regex a cada chamada; ag
 - Na prática, ninguém percebe 100 ms num build. O ganho real da fase 1 é **um binário único sem dependências**
   (não precisa de Python), arquivos idênticos e a base de código para as fases 2 e 3.
 
-## Fase 2: a lógica do app web em WebAssembly (issue #14)
+## Fase 2: a lógica do app web em WebAssembly (issue #14, revertida na #22)
+
+**Status: revertido.** Regra do projeto: converter para Rust, a não ser que os testes, os comparativos ou a análise
+mostrem regressão; nesse caso fica a versão original. A versão em WASM passou em todos os testes de paridade, mas
+foi pior em desempenho, tamanho e abertura do app (números abaixo), então o app web voltou a ser JavaScript puro.
+O código Rust (crate `freemytv-logic`, `web/logic.js`, `freemytv make-logic`) está no histórico, no commit `18bca6f`.
+Abertura do app medida na TV LG de teste (webOS 10.3): +72 ms para decodificar o módulo em base64 e +28 ms para
+compilá-lo, e cerca de 1 MB a mais de memória.
+
+**Por que perdeu:** as funções são pequenas, e a ida e volta entre JS e WASM (copiar e converter textos, e
+`JSON.stringify`/`parse` no clima) custa mais que a conta. O V8 já otimiza bem esse tipo de código, e o módulo
+precisa trazer o que o navegador já tem (leitor de JSON, tabelas Unicode). WASM compensa em processamento pesado
+com poucas idas e voltas (imagem, compressão, criptografia), o que o app web não tem.
+
+### Como foi feito (para referência)
 
 **O que foi para o Rust** (`rust/crates/freemytv-logic`): as funções puras de `web/data.js` e `web/strings.js`, que
 não dependem do navegador:

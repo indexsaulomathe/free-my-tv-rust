@@ -3,6 +3,14 @@
 Tudo o que este fork muda em relação ao upstream (`simbasjungles/free-my-tv`). O código original não foi alterado;
 as mudanças ficam em `documentacao/`, `tests/` e `rust/`.
 
+## 2026-10-24: lógica do app web volta para JavaScript (issue #22)
+- Revertida a #14: saíram `web/logic.js`, `web/logic_wasm.js`, as chamadas ao `Logic` em `data.js` e `strings.js`,
+  o crate `freemytv-logic`, o `freemytv make-logic` e os testes e o benchmark do WASM. `web/` está de novo igual ao
+  original. O código fica no histórico (`18bca6f`).
+- Motivo: regressão medida. De 3 a 11 vezes mais lento por chamada, +90 KB no `.ipk`, +~100 ms na abertura do app
+  e +1 MB de memória na TV. Regra do projeto: converter para Rust, exceto quando houver regressão nos testes, nos
+  comparativos ou na análise.
+
 ## 2026-10-24: lógica do app web em Rust/WebAssembly (issue #14)
 - Novo crate `freemytv-logic` com as funções puras de `web/data.js` e `web/strings.js` (clima, palavras e ícones do
   tempo, regras das sugestões, plurais, escolha do idioma), compilado para WebAssembly.
@@ -74,4 +82,4 @@ as mudanças ficam em `documentacao/`, `tests/` e `rust/`.
 - Saída idêntica à do Python. Ganho de 2,5× a 9× no tempo e de 3× a 4× na memória (veja `rust.md`).
 
 ### Pendente
-- Itens 13 e 15 a 17 (veja `rust.md`).
+- Itens 13 e 15 a 17 (veja `rust.md`). O 14 foi revertido (#22).

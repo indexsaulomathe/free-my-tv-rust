@@ -64,8 +64,6 @@ var I18N = (function () {
    * gives one form per plural category its language uses; a missing one falls back to "other", then to the last.
    */
   function plural(key, n) {
-    var form = Logic.pluralForm(tr(key), pluralOf(n), n);
-    if (form !== undefined) return form;
     var forms = tr(key).split('|'), category = pluralOf(n), chosen = null, other = null, last = '';
     for (var i = 0; i < forms.length; i++) {
       var colon = forms[i].indexOf(':'), name = colon < 0 ? '' : forms[i].substring(0, colon);
@@ -78,8 +76,6 @@ var I18N = (function () {
 
   function pluralOf(n) {
     if (pluralRules) return pluralRules.select(n);
-    var category = Logic.pluralCategory(base(lang), n);
-    if (category !== undefined) return category;
     var rule = PLURALS[base(lang)];
     return rule ? rule(Math.abs(n)) : n === 1 ? 'one' : 'other';
   }
@@ -205,8 +201,6 @@ var I18N = (function () {
 
   /** The catalogue for a setting ("auto", "fr", "pt-BR"…), or for the TV's language with "auto"; else "en". */
   function resolve(setting) {
-    var code0 = Logic.resolve(setting || '', navigator.language || 'en', languages());
-    if (code0 !== undefined) return code0;
     if (setting && setting !== 'auto') {
       var code = match(setting.replace('_', '-'));
       if (code) return code;
@@ -226,16 +220,12 @@ var I18N = (function () {
 
   /** The language without its country ("zh" for "zh-CN"), with Java's old codes for Indonesian and Hebrew, and Norwegian. */
   function base(code) {
-    var b = Logic.base(code);
-    if (b !== undefined) return b;
     var l = code.split('-')[0].toLowerCase();
     return l === 'in' ? 'id' : l === 'iw' ? 'he' : l === 'no' || l === 'nn' ? 'nb' : l;
   }
 
   /** The BCP 47 tag for dates and numbers: the TV's own country when it is in this language (es-MX, de-AT…). */
   function localeOf(code) {
-    var tag = Logic.localeOf(code, navigator.language || '');
-    if (tag !== undefined) return tag;
     if (code === 'en') return 'en-US';
     if (code === 'pt') return 'pt-BR';
     if (code.indexOf('-') > 0) return code;
@@ -262,8 +252,6 @@ var I18N = (function () {
     languages: languages,
     languageName: languageName,
     tr: tr,
-    /** tr() for a key held in a variable (its literal is elsewhere, where tools/translate.py finds it). */
-    text: tr,
     trf: trf,
     plural: plural,
     formatDate: formatDate
