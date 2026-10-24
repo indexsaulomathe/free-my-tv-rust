@@ -3,6 +3,18 @@
 Tudo o que este fork muda em relação ao upstream (`simbasjungles/free-my-tv`). O código original não foi alterado;
 as mudanças ficam em `documentacao/`, `tests/` e `rust/`.
 
+## 2026-10-24: probe dinâmico ARMv7 para webOS (issue #20)
+- Probe Rust liga contra biblioteca substituta local com `getpid@GLIBC_2.4`, sem copiar bibliotecas da TV.
+- ELF local exige `libc.so.6` e `/lib/ld-linux.so.3`; teste na TV retornou `probe_exit=42`.
+- Único executável remoto removido de `/tmp`, com ausência confirmada.
+- Build, verificação e rollback documentados em `rust.md` sem registrar IP ou caminho de chave.
+
+## 2026-10-24: probe Rust ARMv7 para webOS (issue #19)
+- Executável mínimo `no_std` para testar ELF32 ARM EABI soft-float como usuário `prisoner`.
+- Build local, procedimento de teste remoto, limites e rollback documentados em `rust.md`.
+- Teste real em TV LG webOS: saída `probe_exit=42`; cópia por `cat` sobre SSH porque `scp` não existe na TV;
+  executável removido de `/tmp` após o teste.
+
 ## 2026-10-24: lógica do app web volta para JavaScript (issue #22)
 - Revertida a #14: saíram `web/logic.js`, `web/logic_wasm.js`, as chamadas ao `Logic` em `data.js` e `strings.js`,
   o crate `freemytv-logic`, o `freemytv make-logic` e os testes e o benchmark do WASM. `web/` está de novo igual ao

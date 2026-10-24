@@ -83,6 +83,94 @@ Se o Developer Mode for reinstalado, a TV troca de host key e a instalação par
 a assinatura continua com o CLI `tizen` da Samsung). Foi testado contra uma TV simulada (`tizen_install.rs`), não
 numa Samsung de verdade.
 
+## Probe ARMv7 para webOS (issue #19)
+
+`rust/probes/webos_armv7.rs` é um executável Rust mínimo, sem `std` nem bibliotecas externas. A função Rust retorna
+`42`; a entrada usa a syscall Linux ARM EABI `exit`. Compilar no computador:
+
+```bash
+rustup target add armv7-unknown-linux-gnueabi
+rustc rust/probes/webos_armv7.rs --target armv7-unknown-linux-gnueabi \
+  -C panic=abort -C opt-level=s -C linker=rust-lld \
+  -C link-arg=-static -C link-arg=-nostdlib -C link-arg=-no-pie \
+  -o /tmp/freemytv-webos-armv7-probe
+file /tmp/freemytv-webos-armv7-probe
+readelf -h -l /tmp/freemytv-webos-armv7-probe
+```
+
+ELF esperado: ARM 32-bit little-endian, EABI5 soft-float, estático e sem `INTERP`.
+Verificação local em 2026-10-24: `rustc` 1.98.1 gerou ELF32 ARM EABI5 soft-float estático; `readelf` não mostrou
+`INTERP`; disassembly mostrou `rust_probe` retornando `42` em `r0` e `_start` chamando `exit` (syscall 1).
+
+**Pedir aprovação antes de qualquer comando remoto.** Após aprovação, copiar apenas para `/tmp`, executar como
+`prisoner` e verificar `probe_exit=42`. Defina `TV_IP` e `SSH_KEY` somente no shell local; não registre seus valores
+no repositório. Esta TV não tem `scp` remoto, então a cópia usa `cat` sobre SSH:
+
+```bash
+ssh -p 9922 -i "$SSH_KEY" \
+  -o HostKeyAlgorithms=+ssh-rsa -o PubkeyAcceptedAlgorithms=+ssh-rsa \
+  -o StrictHostKeyChecking=yes -o BatchMode=yes prisoner@"$TV_IP" \
+  'umask 077; cat > /tmp/freemytv-webos-armv7-probe && chmod 700 /tmp/freemytv-webos-armv7-probe' \
+  < /tmp/freemytv-webos-armv7-probe
+ssh -p 9922 -i "$SSH_KEY" \
+  -o HostKeyAlgorithms=+ssh-rsa -o PubkeyAcceptedAlgorithms=+ssh-rsa \
+  -o StrictHostKeyChecking=yes -o BatchMode=yes prisoner@"$TV_IP" \
+  '/tmp/freemytv-webos-armv7-probe; printf "probe_exit=%s\n" "$?"'
+```
+
+Resultado na TV em 2026-10-24: `probe_exit=42`; arquivo removido e ausência confirmada com `test ! -e`.
+
+Rollback, também após aprovação para comando remoto: usar o mesmo `ssh` acima com
+`'rm -f /tmp/freemytv-webos-armv7-probe'`. Isso já foi feito após o teste. No computador, `rm -f /tmp/freemytv-webos-armv7-probe`
+remove o artefato; apagar `rust/probes/webos_armv7.rs` reverte a adição de código. Nenhum serviço, firmware ou
+partição é alterado. Este probe só testa execução ARMv7/EABI e syscall no kernel. Por ser estático, não valida
+glibc nem `/lib/ld-linux.so.3`; o probe dinâmico abaixo verifica essa fronteira.
+
+## Probe dinâmico ARMv7 para webOS (issue #20)
+
+`rust/probes/webos_armv7_dynamic.rs` chama `getpid()` da glibc e retorna `42` quando a chamada funciona. Os arquivos
+`webos_armv7_libc_stub.c` e `.map` produzem uma biblioteca substituta **somente para a ligação local**; ela nunca é
+enviada à TV. O carregador remoto resolve `libc.so.6` da própria TV. Compilar no computador Linux x86_64:
+
+```bash
+HOST_TRIPLE="$(rustc -vV | sed -n 's/^host: //p')"
+RUST_LLD="$(rustc --print sysroot)/lib/rustlib/$HOST_TRIPLE/bin/rust-lld"
+clang --target=armv7-unknown-linux-gnueabi -mfloat-abi=soft -fPIC -c \
+  rust/probes/webos_armv7_libc_stub.c -o /tmp/freemytv-webos-libc-link-stub.o
+"$RUST_LLD" -flavor gnu -m armelf_linux_eabi -shared -soname libc.so.6 \
+  --version-script rust/probes/webos_armv7_libc_stub.map \
+  -o /tmp/freemytv-webos-libc-link-stub.so /tmp/freemytv-webos-libc-link-stub.o
+rustc rust/probes/webos_armv7_dynamic.rs --target armv7-unknown-linux-gnueabi \
+  -C panic=abort -C opt-level=s -C linker=rust-lld -C link-arg=-nostdlib \
+  -C link-arg=-no-pie -C link-arg=-dynamic-linker=/lib/ld-linux.so.3 \
+  -C link-arg=/tmp/freemytv-webos-libc-link-stub.so \
+  -o /tmp/freemytv-webos-armv7-dynamic-probe
+readelf -h -l -d -V /tmp/freemytv-webos-armv7-dynamic-probe
+```
+
+Verificação local em 2026-10-24: ELF32 ARM EABI5 soft-float, `PT_INTERP` `/lib/ld-linux.so.3`, `NEEDED` `libc.so.6`,
+requisito `GLIBC_2.4`, sem `RPATH` nem `RUNPATH`. Após aprovação, definir `TV_IP` e `SSH_KEY` apenas no shell local,
+transferir somente o executável e apagá-lo após o teste:
+
+```bash
+SSH_OPTS=(-p 9922 -i "$SSH_KEY" -o HostKeyAlgorithms=+ssh-rsa \
+  -o PubkeyAcceptedAlgorithms=+ssh-rsa -o StrictHostKeyChecking=yes -o BatchMode=yes)
+ssh "${SSH_OPTS[@]}" prisoner@"$TV_IP" \
+  'umask 077; cat > /tmp/freemytv-webos-armv7-dynamic-probe && chmod 700 /tmp/freemytv-webos-armv7-dynamic-probe' \
+  < /tmp/freemytv-webos-armv7-dynamic-probe
+ssh "${SSH_OPTS[@]}" prisoner@"$TV_IP" \
+  '/tmp/freemytv-webos-armv7-dynamic-probe; printf "probe_exit=%s\n" "$?"'
+ssh "${SSH_OPTS[@]}" prisoner@"$TV_IP" \
+  'rm -f /tmp/freemytv-webos-armv7-dynamic-probe && test ! -e /tmp/freemytv-webos-armv7-dynamic-probe'
+```
+
+Resultado na TV em 2026-10-24: `probe_exit=42`; remoção confirmada com `probe_removed=yes`. O carregador dinâmico
+resolveu `libc.so.6` e `getpid@GLIBC_2.4` da TV. O teste não cobre outras funções da glibc ou o app completo.
+
+Rollback: o último comando remove o único arquivo remoto criado; nenhuma biblioteca substituta é transferida. Os
+artefatos locais ficam em `/tmp` e podem ser removidos. Este teste valida o carregador e a chamada `getpid` da glibc,
+não todo o app Rust.
+
 ## Benchmark (fase 1)
 
 `python3 tests/bench/bench.py --runs 30 --markdown`. Cada comando roda como processo novo, contando a
