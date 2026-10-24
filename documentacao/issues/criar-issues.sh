@@ -2,14 +2,14 @@
 # Abre no GitHub uma issue para cada arquivo NN-*.md desta pasta, com os rótulos do cabeçalho.
 # As de "status: feito" são abertas e fechadas logo em seguida, para o histórico ficar registrado.
 #
-#   documentacao/issues/criar-issues.sh                 # no repositório indexsaulomathe/free-my-tv-rust
+#   documentacao/issues/criar-issues.sh                 # repository: indexsaulomathe/rust-free-my-tv
 #   documentacao/issues/criar-issues.sh dono/repositorio
 #
 # Precisa do GitHub CLI (gh) logado e das Issues ativadas no fork (Settings → General → Features → Issues).
 # Rodar duas vezes cria issues duplicadas: ele avisa e para se já existir uma com o mesmo título.
 set -euo pipefail
 cd "$(dirname "$0")"
-repo="${1:-indexsaulomathe/free-my-tv-rust}"
+repo="${1:-indexsaulomathe/rust-free-my-tv}"
 
 field() { sed -n "s/^$1: *//p" "$2" | head -1; }
 

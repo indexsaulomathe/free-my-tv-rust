@@ -1,4 +1,4 @@
-# Free My TV Rust
+# rust-free-my-tv
 
 **An independently developed fork of [Free My TV](https://github.com/simbasjungles/free-my-tv), gradually converting its tooling to Rust.**
 
@@ -20,8 +20,8 @@ See [Rust conversion status](documentacao/rust.md), [test coverage](documentacao
 ## Get the code
 
 ```bash
-git clone https://github.com/indexsaulomathe/free-my-tv-rust.git
-cd free-my-tv-rust
+git clone https://github.com/indexsaulomathe/rust-free-my-tv.git
+cd rust-free-my-tv
 ```
 
 Build the Rust CLI with a [Rust toolchain](https://www.rust-lang.org/tools/install):

@@ -3,6 +3,17 @@
 Tudo o que este fork muda em relação ao upstream (`simbasjungles/free-my-tv`). O código original não foi alterado;
 as mudanças ficam no README, em `documentacao/`, `tests/` e `rust/`.
 
+## 2026-10-24: nome `rust-free-my-tv` (issue #26)
+- Repositório no GitHub renomeado de `free-my-tv-rust` para `rust-free-my-tv`, preservando o vínculo de fork.
+- README e valor padrão do script de criação de issues atualizados para o novo nome. Identificadores internos do app e
+  nome do CLI não mudaram, para preservar compatibilidade de instalação e atualização.
+- Reversão: renomear o repositório de volta no GitHub, restaurar URL do remoto local e os nomes alterados neste commit.
+
+## 2026-10-24: GitHub Actions ativado no fork (issue #23)
+- A configuração de Actions foi reativada no fork pela API do GitHub. O push seguinte iniciou o workflow `Check`.
+- Execução `40083518280`: jobs Android e web concluídos com sucesso. Nenhum arquivo de workflow foi alterado.
+- Reversão: desativar Actions nas configurações do repositório, se desejado.
+
 ## 2026-10-24: About do repositório (issue #25)
 - Descrição no GitHub atualizada para identificar o fork e a conversão gradual das ferramentas para Rust.
 - Link de site do upstream removido do About deste fork; tópicos adicionados: `android-tv`, `google-tv`, `rust`,
