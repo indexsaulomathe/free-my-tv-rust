@@ -1,7 +1,7 @@
 ---
 title: "Converter instalador Samsung (protocolo SDB)"
 labels: [fase-1-ferramentas, conversao-rust]
-status: a-fazer
+status: feito
 ---
 
 **Origem:** tizen/install.py

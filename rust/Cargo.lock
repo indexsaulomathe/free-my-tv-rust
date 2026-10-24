@@ -142,7 +142,9 @@ name = "freemytv-cli"
 version = "0.1.0"
 dependencies = [
  "freemytv-core",
+ "regex",
  "serde_json",
+ "zip",
 ]
 
 [[package]]

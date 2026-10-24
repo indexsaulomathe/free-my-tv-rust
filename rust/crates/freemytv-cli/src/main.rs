@@ -5,20 +5,22 @@
 //!     freemytv homebrew-repo FILE.ipk [--out FILE]                                # tools/homebrew_repo.py
 //!     freemytv make-zones [ZONEINFO_DIR] [--out FILE]                             # tools/make_zones.py
 //!     freemytv webos-install IP [--uninstall]                                     # webos/install.py
+//!     freemytv tizen-install IP [--uninstall]                                     # tizen/install.py
 //!
 //! Run it anywhere inside the repository (or pass --root DIR).
 
 use freemytv_core::config::Config;
-use freemytv_core::{homebrew, package, webapp, webos_install, zones, Error, Repo};
+use freemytv_core::{homebrew, package, tizen_install, webapp, webos_install, zones, Error, Repo};
 use std::path::{Path, PathBuf};
 use std::{env, fs, process};
 
-const USAGE: &str = "usage: freemytv <webos-build|tizen-build|homebrew-repo|make-zones|webos-install> [options]
+const USAGE: &str = "usage: freemytv <webos-build|tizen-build|homebrew-repo|make-zones|webos-install|tizen-install> [options]
   webos-build   [--generic | --config FILE] [--preview] [--out FILE]
   tizen-build   [--generic | --config FILE] [--preview] [--out FILE]
   homebrew-repo FILE.ipk [--out FILE]
   make-zones    [ZONEINFO_DIR] [--out FILE]
   webos-install IP [--uninstall]   installs FreeMyTV-webos.ipk on an LG TV (builds it first if missing)
+  tizen-install IP [--uninstall]   installs the signed FreeMyTV-tizen.wgt on a Samsung TV
   --root DIR    the repository (default: found from the current folder)";
 
 struct Args {
@@ -225,6 +227,99 @@ fn webos_install(repo: &Repo, args: &Args) -> Result<(), Error> {
     Ok(())
 }
 
+fn tizen_install(repo: &Repo, args: &Args) -> Result<(), Error> {
+    let pos = args.positional();
+    let [ip] = pos.as_slice() else {
+        eprintln!("usage: freemytv tizen-install IP [--uninstall]");
+        process::exit(2);
+    };
+    let uninstall = args.flag("--uninstall");
+    let wgt = repo.path("FreeMyTV-tizen.wgt");
+    let data = if uninstall {
+        Vec::new()
+    } else {
+        fs::read(&wgt).map_err(|_| {
+            Error("Build and sign it first: python3 tizen/build.py --sign <profile>".into())
+        })?
+    };
+    // Removing needs only the app's ids: the manifest the package is built from has them, so no build is needed.
+    let manifest = if uninstall {
+        repo.read_string("tizen/config.xml")?
+    } else {
+        let mut z = zip::ZipArchive::new(std::io::Cursor::new(&data))
+            .map_err(|e| Error(format!("{}: {e}", wgt.display())))?;
+        if z.by_name("author-signature.xml").is_err() {
+            return Err(Error(
+                "FreeMyTV-tizen.wgt isn't signed, and the TV only installs signed apps: python3 tizen/build.py --sign <profile>"
+                    .into(),
+            ));
+        }
+        let mut text = String::new();
+        std::io::Read::read_to_string(
+            &mut z
+                .by_name("config.xml")
+                .map_err(|e| Error(format!("config.xml: {e}")))?,
+            &mut text,
+        )?;
+        text
+    };
+    let (app_id, package) = tizen_install::ids(&manifest)?;
+    let mut sdb = tizen_install::Sdb::connect(ip).map_err(|e| {
+        Error(format!(
+            "Couldn't reach the TV on port {} ({e}). On the TV: Apps, 1 2 3 4 5, Developer mode on with Host PC IP {}, then restart the TV.",
+            tizen_install::PORT,
+            tizen_install::this_computer(ip)
+        ))
+    })?;
+    let caps = sdb.capabilities()?;
+    println!(
+        "Connected: {}, Tizen {}.",
+        tizen_install::model(&sdb.banner),
+        caps.get("platform_version")
+            .map(String::as_str)
+            .unwrap_or("?")
+    );
+    let spent = regex::Regex::new("spend time").unwrap();
+    if uninstall {
+        let out = sdb.shell(&format!("0 vd_appuninstall {package}"), Some(&spent), 120)?;
+        let out = out.trim();
+        if !out.contains("uninstall completed") {
+            // Some TVs' sdbd refuses this command and answers nothing.
+            let said = if out.is_empty() {
+                "The TV didn't answer.".to_string()
+            } else {
+                format!("The TV said:\n{out}")
+            };
+            return Err(Error(format!(
+                "{said}\nRemove it on the TV instead: {}.",
+                tizen_install::ON_TV
+            )));
+        }
+        println!("Removed.");
+        return Ok(());
+    }
+    let remote = tizen_install::remote_path(&caps);
+    println!("Copying the app to the TV ...");
+    sdb.push(&remote, &data, tizen_install::now())?;
+    println!("Installing ...");
+    let out = sdb.shell(
+        &format!("0 vd_appinstall {package} {remote}"),
+        Some(&spent),
+        120,
+    )?;
+    tizen_install::install_result(&out)?;
+    sdb.shell(
+        &format!("0 was_execute {app_id}"),
+        Some(&regex::Regex::new("launched|spend time").unwrap()),
+        20,
+    )?;
+    println!("Installed and open on the TV.");
+    println!(
+        "Tip: turn on Autorun Last App in the TV's settings (General, Smart Features; where it is changes by year) and the TV turns on into Free My TV."
+    );
+    Ok(())
+}
+
 fn run() -> Result<(), Error> {
     let mut all: Vec<String> = env::args().skip(1).collect();
     if all.is_empty() || matches!(all[0].as_str(), "-h" | "--help" | "help") {
@@ -245,6 +340,7 @@ fn run() -> Result<(), Error> {
         "homebrew-repo" => homebrew_repo(&repo, &args),
         "make-zones" => make_zones(&repo, &args),
         "webos-install" => webos_install(&repo, &args),
+        "tizen-install" => tizen_install(&repo, &args),
         other => Err(Error(format!("unknown command {other:?}\n{USAGE}"))),
     }
 }

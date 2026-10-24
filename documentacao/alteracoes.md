@@ -3,6 +3,14 @@
 Tudo o que este fork muda em relação ao upstream (`simbasjungles/free-my-tv`). O código original não foi alterado;
 as mudanças ficam em `documentacao/`, `tests/` e `rust/`.
 
+## 2026-10-24: instalador Samsung em Rust (issue #10)
+- `freemytv tizen-install IP [--uninstall]` substitui `tizen/install.py`: o mesmo protocolo SDB (cabeçalho de 24
+  bytes, OPEN/OKAY/WRTE/CLSE, `sync:` SEND/DATA/DONE), `0 vd_appinstall`, `0 was_execute` e as mesmas mensagens.
+- O sucesso só vale com `install completed` (como no Python: `cmd_ret:0` também aparece depois de falhas).
+- 4 testes novos: cabeçalho igual ao `struct.pack` do Python, ids do manifesto, capacidades, respostas do instalador
+  e uma conversa inteira com uma TV simulada (conexão, capacidades, envio de 5000 bytes em pacotes e instalação).
+- Não testado numa Samsung de verdade (não há uma aqui).
+
 ## 2026-10-24: instalador LG em Rust (issue #9)
 - `freemytv webos-install IP [--uninstall]` substitui `webos/install.py`: chave pelo Key Server, cópia por SSH e
   instalação pelo `com.webos.appInstallService`, com as mesmas mensagens.
@@ -36,4 +44,4 @@ as mudanças ficam em `documentacao/`, `tests/` e `rust/`.
 - Saída idêntica à do Python. Ganho de 2,5× a 9× no tempo e de 3× a 4× na memória (veja `rust.md`).
 
 ### Pendente
-- Itens 10 a 17 (veja `rust.md`).
+- Itens 11 a 17 (veja `rust.md`).
