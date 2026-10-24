@@ -1,7 +1,7 @@
 ---
 title: "Converter geradores de arte e símbolos"
 labels: [fase-1-ferramentas, conversao-rust]
-status: descartado
+status: feito
 ---
 
 **Origem:** tools/make_art.py, tools/make_symbols.py (Pillow)

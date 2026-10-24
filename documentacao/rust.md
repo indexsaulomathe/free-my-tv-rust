@@ -8,7 +8,7 @@ em [`alteracoes.md`](alteracoes.md).
 
 | Fase | O que | Status |
 |---|---|---|
-| 1. Ferramentas | Scripts Python de build, instalação e geração | Concluída: 12 itens em Rust; arte e símbolos ficam em Python (#13, regressão de fidelidade) |
+| 1. Ferramentas | Scripts Python de build, instalação e geração | Concluída: os 13 itens em Rust (arte e símbolos com `--features art`, #13) |
 | 2. Lógica | Dados, formatação e regras (`web/data.js`, `HomeData`, `Recs`, `HomeMode`) → Rust compilado para WASM e JNI | Avaliada: regressão na web (#14, revertida na #22) e no Android (#15). Fica em JS e Java |
 | 3. Interface | `home.js`, `HomeView` e afins | Não será feita: a fase 2 regrediu, e a interface depende ainda mais do motor da TV (#16, #17) |
 
@@ -47,7 +47,7 @@ rust/
 | 10 | [instalador Samsung](issues/10-tizen-install.md) | `tizen/install.py` | `freemytv tizen-install` | ✅ (testado com uma TV simulada) |
 | 11 | [validação de traduções](issues/11-translate-check.md) | `translate.py --check` | `freemytv translate-check` | ✅ |
 | 12 | [fotos](issues/12-photos.md) | `tools/photos.py` | `freemytv photos` | ✅ (testado com um adb simulado) |
-| 13 | [arte e símbolos](issues/13-arte.md) | `make_art.py`, `make_symbols.py` | protótipo | ❌ regressão: fica em Python |
+| 13 | [arte e símbolos](issues/13-arte.md) | `make_art.py`, `make_symbols.py` | `freemytv make-art`, `make-symbols` (`--features art`) | ✅ pixels idênticos |
 | 14 | [lógica web](issues/14-logica-web.md) | `web/data.js`, `strings.js` | `freemytv-logic` (WASM) | ↩️ revertido (#22): regressão, fica em JS |
 | 15 | [lógica Android](issues/15-logica-android.md) | `HomeData`, `Recs`, `HomeMode` | JNI | ❌ regressão (protótipo medido) |
 | 16 | [interface web](issues/16-ui-web.md) | `home.js` | — | ❌ não será feita |
@@ -280,26 +280,34 @@ As respostas são iguais, conferidas pelo próprio protótipo.
 plataformas, a fase 3 (interfaces, #16 e #17) não será feita: ela depende ainda mais do navegador e do Canvas do
 Android, com mais idas e voltas e, nas TVs de 2017 a 2019, nem WebAssembly.
 
-## Arte e símbolos: protótipo (issue #13, não convertida)
+## Arte e símbolos (issue #13)
 
-`tests/bench/art/run.sh` refaz em Rust (tiny-skia, image, ab_glyph) o `tools/make_art.py`: ícone do app, banner da TV
-e imagens do site. Ele compara o resultado com as imagens do repositório, que o Pillow gera idênticas, como são
-vistas sobre fundo branco e escuro.
+`freemytv make-art` e `freemytv make-symbols` (crate `freemytv-art`) substituem `tools/make_art.py` e
+`tools/make_symbols.py`. **Mesma entrada, mesmos pixels que o Python** (Pillow 13.0.0), conferido por
+`tests/python/test_rust_parity.py`:
 
-Critério definido antes de medir: média abaixo de 1 nível (de 255) e 99,9% dos pixels a até 8 níveis.
+| Ferramenta | Python | Rust | Pixels |
+|---|---:|---:|---|
+| `make_art` (ícone, banner, 3 imagens do site) | 11,0 s | 0,5 s (22×) | idênticos nas 5 |
+| `make_symbols` (31 ícones, Material Symbols) | 46,3 s | 4,4 s (10×) | idênticos nos 31 |
 
-| Imagem | Média (branco) | Máximo | Pixels a até 8 níveis |
-|---|---:|---:|---:|
-| `icon.png` (192) | 0,16 | 33 | 99,43% |
-| `banner.png` (640×360) | 0,62 | 138 | 98,35% |
-| `icon-512.png` | 0,09 | 40 | 99,72% |
-| `apple-touch-icon.png` (180) | 0,17 | 32 | 99,33% |
-| `favicon-64.png` | 0,38 | 28 | 98,88% |
+**Como ficou idêntico:** o Rust repete o caminho do Pillow, passo a passo. São portes do C do Pillow: desenho
+(`Draw.c`: polígonos, elipses, arcos e o retângulo arredondado do `ImageDraw.py`), blur (`BoxBlur.c`),
+redimensionamento Lanczos com alfa pré-multiplicado (`Resample.c`, `Convert.c`) e composição (`AlphaComposite.c`,
+`Paste.c`). O texto passa pelas mesmas bibliotecas do Pillow, FreeType e HarfBuzz (`hb-ft`), com as mesmas
+chamadas. Foi comparado etapa por etapa: degradê, máscara, formas, sombra, composição, redimensionamento e texto.
 
-Tempo: 11,0 s no Python e 0,9 s no Rust (12× mais rápido).
+**A primeira avaliação errou.** O protótipo antigo usava outras bibliotecas de desenho (tiny-skia, ab_glyph), que
+nunca dariam os mesmos pixels, e por isso a #13 foi fechada como regressão. Refeita com os algoritmos do Pillow, não
+há regressão.
 
-**Decisão:** regressão de fidelidade, pela regra do projeto. As bordas são rasterizadas de outro jeito (Pillow
-desenha sem suavização e com regras próprias de pixel; o tiny-skia, com as dele) e o texto do banner fica ~1 px
-deslocado. Gerar a arte com o Rust mudaria levemente os ícones já publicados. O ganho de tempo é num script que só
-roda quando a arte muda, e traria três bibliotecas novas ao `freemytv`. `make_symbols.py` nem pôde ser comparado: a
-fonte Material Symbols que ele usa não está no repositório. Os dois continuam em Python.
+**Atenção:**
+- O banner e os ícones publicados no repositório não são reproduzidos nem pelo Python de hoje: foram gerados com
+  outras versões da FreeType e da fonte Material Symbols. Gerar de novo, com o Python ou com o Rust, muda alguns
+  pixels do texto e dos símbolos. Os bytes do PNG também mudam, porque o codificador é outro.
+- A arte precisa da FreeType 2.14.3 (a do Pillow 13.0.0; com outra versão o texto pode mudar) e do HarfBuzz no
+  sistema. Por isso fica fora do binário padrão: `cd rust && cargo build --release --features freemytv-cli/art`.
+  O resto do `freemytv` continua sem dependências.
+- A fonte do `make-symbols` (Material Symbols Rounded, Apache 2.0) não está no repositório: baixe
+  `MaterialSymbolsRounded[FILL,GRAD,opsz,wght].ttf` e o `.codepoints` de github.com/google/material-design-icons
+  (`variablefont/`). Para o teste de paridade, aponte `FMTV_SYMBOLS_FONT` e `FMTV_SYMBOLS_CODEPOINTS` para eles.

@@ -48,6 +48,14 @@ as mudanças ficam no README, em `documentacao/`, `tests/` e `rust/`.
 - Teste real em TV LG webOS: saída `probe_exit=42`; cópia por `cat` sobre SSH porque `scp` não existe na TV;
   executável removido de `/tmp` após o teste.
 
+## 2026-10-24: arte e símbolos em Rust, pixels idênticos (issue #13, reaberta)
+- Novo crate `freemytv-art` e comandos `freemytv make-art` e `make-symbols` (`--features art`), no lugar de
+  `tools/make_art.py` e `tools/make_symbols.py`: portes dos algoritmos do Pillow 13.0.0 e texto pela mesma FreeType
+  e HarfBuzz. Pixels idênticos ao Python nas 5 imagens e nos 31 ícones; 22× e 10× mais rápido.
+- Corrige a avaliação anterior ("arte e símbolos ficam em Python"): o protótipo usava outras bibliotecas de desenho.
+  O protótipo antigo (`tests/bench/art/`) saiu.
+- Dois testes de paridade novos. O de símbolos precisa da fonte, indicada por `FMTV_SYMBOLS_FONT`.
+
 ## 2026-10-24: revisão de lógica e segurança da CLI em Rust (issue #28)
 - SDB (Samsung): limite de 1 MB por pacote e de 16 MB por saída de comando, e recusa de `max_data` até 8 bytes, para
   que um aparelho se passando pela TV não derrube a CLI. Key Server (LG): resposta de no máximo 64 KB.
@@ -144,4 +152,4 @@ as mudanças ficam no README, em `documentacao/`, `tests/` e `rust/`.
 - Saída idêntica à do Python. Ganho de 2,5× a 9× no tempo e de 3× a 4× na memória (veja `rust.md`).
 
 ### Pendente
-- Nada da conversão. 12 itens em Rust; 13 a 17 avaliados e mantidos como estão (regressão), o 14 revertido (#22).
+- Nada da conversão. 13 itens em Rust (o 13 com `--features art`); 15 a 17 avaliados e mantidos como estão (regressão), o 14 revertido (#22).
