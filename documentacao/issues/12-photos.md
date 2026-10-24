@@ -1,7 +1,7 @@
 ---
 title: "Converter envio de fotos (photos.py)"
 labels: [fase-1-ferramentas, conversao-rust]
-status: a-fazer
+status: feito
 ---
 
 **Origem:** tools/photos.py

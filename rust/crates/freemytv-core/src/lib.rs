@@ -8,6 +8,7 @@
 //! | [`package`] | `webos/build.py` (.ipk) and `tizen/build.py` (.wgt, unsigned) |
 //! | [`homebrew`] | `tools/homebrew_repo.py` |
 //! | [`zones`] | `tools/make_zones.py` |
+//! | [`photos`] | `tools/photos.py` |
 //! | [`translate`] | `tools/translate.py --check` |
 //! | [`webos_install`] | `webos/install.py` |
 //! | [`tizen_install`] | `tizen/install.py` |
@@ -18,6 +19,7 @@ pub mod homebrew;
 pub mod i18n;
 pub mod json;
 pub mod package;
+pub mod photos;
 pub mod tizen_install;
 pub mod translate;
 pub mod webapp;

@@ -8,7 +8,7 @@ em [`alteracoes.md`](alteracoes.md).
 
 | Fase | O que | Status |
 |---|---|---|
-| 1. Ferramentas | Scripts Python de build, instalação e geração | Em andamento: 11 de 13 itens feitos |
+| 1. Ferramentas | Scripts Python de build, instalação e geração | Em andamento: 12 de 13 itens feitos |
 | 2. Lógica | Dados, formatação e regras (`web/data.js`, `HomeData`, `Recs`, `HomeMode`) → Rust compilado para WASM e JNI | A fazer |
 | 3. Interface | `home.js`, `HomeView` e afins | A avaliar: a interface depende do motor da TV, e o ganho precisa ser medido antes |
 
@@ -45,7 +45,7 @@ rust/
 | 09 | [instalador LG](issues/09-webos-install.md) | `webos/install.py` | `freemytv webos-install` | ✅ (com a correção da host key) |
 | 10 | [instalador Samsung](issues/10-tizen-install.md) | `tizen/install.py` | `freemytv tizen-install` | ✅ (testado com uma TV simulada) |
 | 11 | [validação de traduções](issues/11-translate-check.md) | `translate.py --check` | `freemytv translate-check` | ✅ |
-| 12 | [fotos](issues/12-photos.md) | `tools/photos.py` | `freemytv photos` | ⏳ próximo |
+| 12 | [fotos](issues/12-photos.md) | `tools/photos.py` | `freemytv photos` | ✅ (testado com um adb simulado) |
 | 13 | [arte e símbolos](issues/13-arte.md) | `make_art.py`, `make_symbols.py` | — | ⏳ baixa prioridade |
 | 14 | [lógica web](issues/14-logica-web.md) | `web/data.js`, `strings.js` | WASM | ⏳ fase 2 |
 | 15 | [lógica Android](issues/15-logica-android.md) | `HomeData`, `Recs`, `HomeMode` | JNI | ⏳ fase 2 |
@@ -71,6 +71,7 @@ rust/target/release/freemytv make-zones
 rust/target/release/freemytv webos-install 192.168.1.50   # = python3 webos/install.py (--uninstall remove)
 rust/target/release/freemytv tizen-install 192.168.1.50   # = python3 tizen/install.py (--uninstall remove)
 rust/target/release/freemytv translate-check              # = python3 tools/translate.py --check
+rust/target/release/freemytv photos 192.168.1.50 Ferias/  # = python3 tools/photos.py (TVs Android, precisa do adb)
 ```
 
 `webos-install` usa a mesma chave do Python (`~/.ssh/freemytv_webos_<IP>`), então quem já instalou pelo Python não

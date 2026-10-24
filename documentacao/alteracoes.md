@@ -3,6 +3,14 @@
 Tudo o que este fork muda em relação ao upstream (`simbasjungles/free-my-tv`). O código original não foi alterado;
 as mudanças ficam em `documentacao/`, `tests/` e `rust/`.
 
+## 2026-10-24: envio de fotos em Rust (issue #12)
+- `freemytv photos [IP] FOTOS_OU_PASTAS...` substitui `tools/photos.py`: mesma ordem (pastas como o `os.walk`, sem
+  ocultos), mesmo nome na TV (`000-nome_sem_espacos`), `adb push` na pasta do app ou `content write` na PhotoInbox
+  (Android 11, Fire OS 8), com o nome codificado como o `urllib.parse.quote` e o tamanho na URI.
+- Paridade testada com um `adb` falso em 5 situações (envio direto, pela PhotoInbox, app antigo, app não instalado,
+  conexão recusada): mesma saída, mesmo código de saída e os mesmos comandos do adb, na mesma ordem.
+- 3 testes Rust novos. Não testado numa TV Android de verdade (a TV daqui é LG).
+
 ## 2026-10-24: validação das traduções em Rust (issue #11)
 - `freemytv translate-check` substitui `tools/translate.py --check`: extrai as chaves do Java (`Ui.tr`, `trf`,
   `plural`, `datePattern`) e do `web/`, e valida todos os catálogos (chaves faltando ou obsoletas, placeholders,
@@ -53,4 +61,4 @@ as mudanças ficam em `documentacao/`, `tests/` e `rust/`.
 - Saída idêntica à do Python. Ganho de 2,5× a 9× no tempo e de 3× a 4× na memória (veja `rust.md`).
 
 ### Pendente
-- Itens 12 a 17 (veja `rust.md`).
+- Itens 13 a 17 (veja `rust.md`).

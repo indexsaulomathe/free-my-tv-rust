@@ -119,3 +119,42 @@ def test_translate_check_problems(tmp_path):
     py, rs = both_check(tmp_path)
     assert py == rs
     assert rs[0] == 1 and rs[1].count('\n') > 8
+
+
+FAKE_ADB = r'''#!/usr/bin/env python3
+import os, sys
+args = sys.argv[1:]
+mode = os.environ['FAKE_MODE']
+size = len(sys.stdin.buffer.read()) if 'exec-in' in args else None
+with open(os.environ['FAKE_LOG'], 'a') as f:
+    f.write(repr((args, size)) + '\n')
+rest = args[2:] if args[:1] == ['-s'] else args
+if rest[0] == 'connect':
+    print('failed to connect' if mode == 'noconnect' else 'connected to ' + rest[1])
+elif rest[:4] == ['shell', 'pm', 'list', 'packages']:
+    print('package:io.freemytvx' if mode == 'noapp' else 'package:io.freemytv')
+elif rest[:2] == ['shell', 'mkdir']:
+    sys.exit(1 if mode in ('inbox', 'old') else 0)
+elif rest[:3] == ['shell', 'content', 'query']:
+    print('Error: Could not find provider' if mode == 'old' else 'No result found.')
+'''
+
+
+@pytest.mark.parametrize('mode', ['direct', 'inbox', 'old', 'noapp', 'noconnect'])
+def test_photos(tmp_path, mode):
+    bin_dir = tmp_path / 'bin'
+    bin_dir.mkdir()
+    (bin_dir / 'adb').write_text(FAKE_ADB)
+    (bin_dir / 'adb').chmod(0o755)
+    pics = tmp_path / 'Férias'
+    for p in ['b praia.jpg', 'a#1?.PNG', '.oculta.jpg', 'nota.txt', 'sub/c.webp']:
+        (pics / p).parent.mkdir(parents=True, exist_ok=True)
+        (pics / p).write_bytes(os.urandom(100 + len(p)))
+    args = ['192.168.4.20', str(pics) + '/', str(pics / 'nota.txt')]
+    out = {}
+    for who, cmd in (('py', ['python3', os.path.join(ROOT, 'tools', 'photos.py')]), ('rs', [BIN, 'photos'])):
+        log = tmp_path / (who + '.log')
+        env = dict(os.environ, PATH=str(bin_dir) + os.pathsep + os.environ['PATH'], FAKE_MODE=mode, FAKE_LOG=str(log))
+        r = subprocess.run(cmd + args, capture_output=True, text=True, env=env)
+        out[who] = (r.returncode, r.stdout, log.read_text())
+    assert out['py'] == out['rs']

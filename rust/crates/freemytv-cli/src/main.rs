@@ -7,17 +7,18 @@
 //!     freemytv webos-install IP [--uninstall]                                     # webos/install.py
 //!     freemytv tizen-install IP [--uninstall]                                     # tizen/install.py
 //!     freemytv translate-check                                                    # tools/translate.py --check
+//!     freemytv photos [IP] PHOTOS_OR_FOLDERS...                                   # tools/photos.py
 //!
 //! Run it anywhere inside the repository (or pass --root DIR).
 
 use freemytv_core::config::Config;
 use freemytv_core::{
-    homebrew, package, tizen_install, translate, webapp, webos_install, zones, Error, Repo,
+    homebrew, package, photos, tizen_install, translate, webapp, webos_install, zones, Error, Repo,
 };
 use std::path::{Path, PathBuf};
 use std::{env, fs, process};
 
-const USAGE: &str = "usage: freemytv <webos-build|tizen-build|homebrew-repo|make-zones|webos-install|tizen-install|translate-check> [options]
+const USAGE: &str = "usage: freemytv <webos-build|tizen-build|homebrew-repo|make-zones|webos-install|tizen-install|translate-check|photos> [options]
   webos-build   [--generic | --config FILE] [--preview] [--out FILE]
   tizen-build   [--generic | --config FILE] [--preview] [--out FILE]
   homebrew-repo FILE.ipk [--out FILE]
@@ -25,6 +26,7 @@ const USAGE: &str = "usage: freemytv <webos-build|tizen-build|homebrew-repo|make
   webos-install IP [--uninstall]   installs FreeMyTV-webos.ipk on an LG TV (builds it first if missing)
   tizen-install IP [--uninstall]   installs the signed FreeMyTV-tizen.wgt on a Samsung TV
   translate-check                  validates every catalogue against the code (exit 1 on problems)
+  photos [IP] FILES...             sends photos to an Android/Google TV (screensaver, My Photos), with adb
   --root DIR    the repository (default: found from the current folder)";
 
 struct Args {
@@ -338,6 +340,32 @@ fn translate_check(repo: &Repo) -> Result<(), Error> {
     process::exit(1);
 }
 
+/// Whether a program is on the PATH (`shutil.which`).
+fn on_path(program: &str) -> bool {
+    env::var_os("PATH").is_some_and(|paths| {
+        env::split_paths(&paths).any(|dir| {
+            let p = dir.join(program);
+            p.is_file() || p.with_extension("exe").is_file()
+        })
+    })
+}
+
+fn photos_command(list: Vec<String>) -> i32 {
+    if list.is_empty() || matches!(list[0].as_str(), "-h" | "--help") {
+        println!("usage: freemytv photos [IP] PHOTOS_OR_FOLDERS...\nSends photos to the TV (adb) for the screensaver and My Photos: JPEG, PNG, WebP, HEIC; up to 100.");
+        return if list.is_empty() { 2 } else { 0 };
+    }
+    if !on_path("adb") {
+        println!("adb not found: install the Android platform tools (see the README).");
+        return 1;
+    }
+    let mut adb = photos::Adb {
+        program: "adb".into(),
+        serial: Vec::new(),
+    };
+    photos::send(&mut adb, list)
+}
+
 fn run() -> Result<(), Error> {
     let mut all: Vec<String> = env::args().skip(1).collect();
     if all.is_empty() || matches!(all[0].as_str(), "-h" | "--help" | "help") {
@@ -345,6 +373,10 @@ fn run() -> Result<(), Error> {
         return Ok(());
     }
     let command = all.remove(0);
+    if command == "photos" {
+        // Paths, not flags: needs no repository.
+        process::exit(photos_command(all));
+    }
     let args = Args { list: all };
     let repo = match args.value("--root") {
         Some(r) => Repo::new(r),
