@@ -1,6 +1,8 @@
 [workspace]
 resolver = "2"
-members = ["crates/freemytv-core", "crates/freemytv-cli"]
+members = ["crates/freemytv-core", "crates/freemytv-cli", "crates/freemytv-art"]
+# freemytv-art needs FreeType and HarfBuzz: built only when asked (-p freemytv-art, or --features freemytv-cli/art).
+default-members = ["crates/freemytv-core", "crates/freemytv-cli"]
 
 [workspace.package]
 version = "0.1.0"

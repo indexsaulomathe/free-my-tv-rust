@@ -14,3 +14,9 @@ freemytv-core = { path = "../freemytv-core" }
 serde_json = { version = "1.0", features = ["preserve_order"] }
 regex = "1.13"
 zip = { version = "9", default-features = false, features = ["deflate"] }
+freemytv-art = { path = "../freemytv-art", optional = true }
+
+[features]
+# make-art and make-symbols: they need FreeType and HarfBuzz on the system, so they're opt-in
+# (cargo build --release --features art); the rest of freemytv stays a single binary without them.
+art = ["dep:freemytv-art"]

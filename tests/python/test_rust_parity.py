@@ -4,6 +4,7 @@ Skipped when the binary isn't built: `cd rust && cargo build --release`.
 """
 import os
 import subprocess
+import sys
 import zipfile
 
 import pytest
@@ -158,3 +159,49 @@ def test_photos(tmp_path, mode):
         r = subprocess.run(cmd + args, capture_output=True, text=True, env=env)
         out[who] = (r.returncode, r.stdout, log.read_text())
     assert out['py'] == out['rs']
+
+
+def art_built():
+    if not os.path.exists(BIN):
+        return False
+    r = subprocess.run([BIN, 'make-art', '--root', '/nonexistent'], capture_output=True, text=True)
+    return 'built without the art' not in r.stderr
+
+
+def same_pixels(a, b):
+    from PIL import Image
+    x, y = Image.open(a), Image.open(b)
+    return x.size == y.size and x.convert('RGBA').tobytes() == y.convert('RGBA').tobytes()
+
+
+@pytest.mark.skipif(not art_built(), reason='freemytv built without --features art')
+def test_make_art(tmp_path):
+    pytest.importorskip('PIL')
+    import shutil
+    for who in ('py', 'rs'):
+        (tmp_path / who / 'tools').mkdir(parents=True)
+        shutil.copy(os.path.join(ROOT, 'tools', 'make_art.py'), tmp_path / who / 'tools')
+        shutil.copytree(os.path.join(ROOT, 'app', 'assets', 'fonts'), tmp_path / who / 'app' / 'assets' / 'fonts')
+    subprocess.run([sys.executable, str(tmp_path / 'py' / 'tools' / 'make_art.py')], check=True, capture_output=True)
+    subprocess.run([BIN, 'make-art', '--root', str(tmp_path / 'rs')], check=True, capture_output=True)
+    for rel in ('app/res/drawable-nodpi/icon.png', 'app/res/drawable-nodpi/banner.png', 'docs/assets/icon-512.png',
+                'docs/assets/apple-touch-icon.png', 'docs/assets/favicon-64.png'):
+        assert same_pixels(tmp_path / 'py' / rel, tmp_path / 'rs' / rel), rel
+
+
+SYMBOLS_FONT = os.environ.get('FMTV_SYMBOLS_FONT')   # MaterialSymbolsRounded[FILL,GRAD,opsz,wght].ttf
+SYMBOLS_CODEPOINTS = os.environ.get('FMTV_SYMBOLS_CODEPOINTS')
+
+
+@pytest.mark.skipif(not (art_built() and SYMBOLS_FONT and SYMBOLS_CODEPOINTS),
+                    reason='needs --features art and FMTV_SYMBOLS_FONT / FMTV_SYMBOLS_CODEPOINTS (the Python takes ~45 s)')
+def test_make_symbols(tmp_path):
+    pytest.importorskip('PIL')
+    subprocess.run([sys.executable, '-I', os.path.join(ROOT, 'tools', 'make_symbols.py'), SYMBOLS_FONT,
+                    SYMBOLS_CODEPOINTS, str(tmp_path / 'py')], check=True, capture_output=True)
+    subprocess.run([BIN, 'make-symbols', SYMBOLS_FONT, SYMBOLS_CODEPOINTS, str(tmp_path / 'rs')], check=True,
+                   capture_output=True)
+    names = sorted(os.listdir(tmp_path / 'py'))
+    assert names == sorted(os.listdir(tmp_path / 'rs'))
+    for name in names:
+        assert same_pixels(tmp_path / 'py' / name, tmp_path / 'rs' / name), name

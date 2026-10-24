@@ -8,6 +8,8 @@
 //!     freemytv tizen-install IP [--uninstall]                                     # tizen/install.py
 //!     freemytv translate-check                                                    # tools/translate.py --check
 //!     freemytv photos [IP] PHOTOS_OR_FOLDERS...                                   # tools/photos.py
+//!     freemytv make-art                                     (--features art)      # tools/make_art.py
+//!     freemytv make-symbols FONT CODEPOINTS OUT_DIR [EM_PX] (--features art)      # tools/make_symbols.py
 //!
 //! Run it anywhere inside the repository (or pass --root DIR).
 
@@ -18,7 +20,7 @@ use freemytv_core::{
 use std::path::{Path, PathBuf};
 use std::{env, fs, process};
 
-const USAGE: &str = "usage: freemytv <webos-build|tizen-build|homebrew-repo|make-zones|webos-install|tizen-install|translate-check|photos> [options]
+const USAGE: &str = "usage: freemytv <webos-build|tizen-build|homebrew-repo|make-zones|webos-install|tizen-install|translate-check|photos|make-art|make-symbols> [options]
   webos-build   [--generic | --config FILE] [--preview] [--out FILE]
   tizen-build   [--generic | --config FILE] [--preview] [--out FILE]
   homebrew-repo FILE.ipk [--out FILE]
@@ -27,6 +29,8 @@ const USAGE: &str = "usage: freemytv <webos-build|tizen-build|homebrew-repo|make
   tizen-install IP [--uninstall]   installs the signed FreeMyTV-tizen.wgt on a Samsung TV
   translate-check                  validates every catalogue against the code (exit 1 on problems)
   photos [IP] FILES...             sends photos to an Android/Google TV (screensaver, My Photos), with adb
+  make-art                         the app's icon and banner and the site's images (built with --features art)
+  make-symbols FONT CODEPOINTS OUT_DIR [EM_PX]   the icons from Material Symbols (built with --features art)
   --root DIR    the repository (default: found from the current folder)";
 
 struct Args {
@@ -374,6 +378,45 @@ fn photos_command(list: Vec<String>) -> i32 {
     photos::send(&mut adb, list)
 }
 
+#[cfg(not(feature = "art"))]
+const ART_OFF: &str = "this freemytv was built without the art: cargo build --release --features art (needs FreeType and HarfBuzz)";
+
+#[cfg(feature = "art")]
+fn make_art(repo: &Repo) -> Result<(), Error> {
+    for path in freemytv_art::make_art(&repo.root).map_err(Error)? {
+        println!("Wrote {}", path.display());
+    }
+    Ok(())
+}
+
+#[cfg(not(feature = "art"))]
+fn make_art(_: &Repo) -> Result<(), Error> {
+    Err(Error(ART_OFF.into()))
+}
+
+#[cfg(feature = "art")]
+fn make_symbols(list: &[String]) -> Result<(), Error> {
+    let [font, codepoints, out, rest @ ..] = list else {
+        eprintln!("usage: freemytv make-symbols FONT.ttf CODEPOINTS OUT_DIR [EM_PX]");
+        process::exit(2);
+    };
+    let em = match rest.first() {
+        Some(e) => e
+            .parse()
+            .map_err(|_| Error(format!("EM_PX must be a number (got {e:?})")))?,
+        None => 172,
+    };
+    let n = freemytv_art::make_symbols(Path::new(font), Path::new(codepoints), Path::new(out), em)
+        .map_err(Error)?;
+    println!("ok: {n} icons in {out}");
+    Ok(())
+}
+
+#[cfg(not(feature = "art"))]
+fn make_symbols(_: &[String]) -> Result<(), Error> {
+    Err(Error(ART_OFF.into()))
+}
+
 fn run() -> Result<(), Error> {
     let mut all: Vec<String> = env::args().skip(1).collect();
     if all.is_empty() || matches!(all[0].as_str(), "-h" | "--help" | "help") {
@@ -384,6 +427,9 @@ fn run() -> Result<(), Error> {
     if command == "photos" {
         // Paths, not flags: needs no repository.
         process::exit(photos_command(all));
+    }
+    if command == "make-symbols" {
+        return make_symbols(&all);
     }
     let args = Args { list: all };
     let repo = match args.value("--root") {
@@ -400,6 +446,7 @@ fn run() -> Result<(), Error> {
         "webos-install" => webos_install(&repo, &args),
         "tizen-install" => tizen_install(&repo, &args),
         "translate-check" => translate_check(&repo),
+        "make-art" => make_art(&repo),
         other => Err(Error(format!("unknown command {other:?}\n{USAGE}"))),
     }
 }
