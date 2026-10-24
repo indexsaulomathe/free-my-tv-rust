@@ -28,7 +28,11 @@ impl Args {
         self.list.iter().any(|a| a == name)
     }
     fn value(&self, name: &str) -> Option<String> {
-        self.list.iter().position(|a| a == name).and_then(|i| self.list.get(i + 1)).cloned()
+        self.list
+            .iter()
+            .position(|a| a == name)
+            .and_then(|i| self.list.get(i + 1))
+            .cloned()
     }
     /// Arguments that are neither flags nor flag values.
     fn positional(&self) -> Vec<String> {
@@ -51,7 +55,10 @@ fn config(repo: &Repo, args: &Args) -> Result<Config, Error> {
     if args.flag("--generic") {
         return Ok(Config::generic());
     }
-    let path = args.value("--config").map(PathBuf::from).unwrap_or_else(|| repo.path("config.properties"));
+    let path = args
+        .value("--config")
+        .map(PathBuf::from)
+        .unwrap_or_else(|| repo.path("config.properties"));
     Config::read(&path, &repo.path("config.example.properties"))
 }
 
@@ -61,24 +68,52 @@ fn kb(n: usize) -> usize {
 
 fn build(repo: &Repo, args: &Args, lg: bool) -> Result<(), Error> {
     let cfg = config(repo, args)?;
-    let made_by = if lg { "webos/build.py" } else { "tizen/build.py" };
+    let made_by = if lg {
+        "webos/build.py"
+    } else {
+        "tizen/build.py"
+    };
     let app = webapp::files(repo, &cfg, made_by)?;
     let preview = if lg { "out/webos" } else { "out/tizen" };
     if args.flag("--preview") {
         webapp::preview(&app, &repo.path(preview))?;
     }
-    let built = if lg { package::ipk(repo, app, package::now())? } else { package::wgt(repo, app)? };
-    let default = if lg { "FreeMyTV-webos.ipk" } else { "FreeMyTV-tizen.wgt" };
-    let out = args.value("--out").map(PathBuf::from).unwrap_or_else(|| repo.path(default));
+    let built = if lg {
+        package::ipk(repo, app, package::now())?
+    } else {
+        package::wgt(repo, app)?
+    };
+    let default = if lg {
+        "FreeMyTV-webos.ipk"
+    } else {
+        "FreeMyTV-tizen.wgt"
+    };
+    let out = args
+        .value("--out")
+        .map(PathBuf::from)
+        .unwrap_or_else(|| repo.path(default));
     fs::write(&out, &built.data)?;
     if args.flag("--preview") {
         println!("Preview: open {preview}/index.html (or serve {preview}) in a browser.");
     }
-    let name = out.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
+    let name = out
+        .file_name()
+        .map(|n| n.to_string_lossy().into_owned())
+        .unwrap_or_default();
     if lg {
-        println!("Built {name} ({} {}, {} KB)", built.app_id, built.version, kb(built.data.len()));
+        println!(
+            "Built {name} ({} {}, {} KB)",
+            built.app_id,
+            built.version,
+            kb(built.data.len())
+        );
     } else {
-        println!("Built {name} ({} {}, {} KB, not signed)", built.app_id, built.version, kb(built.data.len()));
+        println!(
+            "Built {name} ({} {}, {} KB, not signed)",
+            built.app_id,
+            built.version,
+            kb(built.data.len())
+        );
     }
     if cfg.tmdb_key.is_empty() {
         println!("No TMDB key: the picks stay off (everything else works).");
@@ -95,24 +130,47 @@ fn homebrew_repo(repo: &Repo, args: &Args) -> Result<(), Error> {
     let data = fs::read(ipk).map_err(|e| Error(format!("{ipk}: {e}")))?;
     let sha = homebrew::sha256_hex(&data);
     let text = homebrew::repository(repo, &sha, data.len() as u64)?;
-    let out = args.value("--out").map(PathBuf::from).unwrap_or_else(|| repo.path("docs/webos/apps.json"));
+    let out = args
+        .value("--out")
+        .map(PathBuf::from)
+        .unwrap_or_else(|| repo.path("docs/webos/apps.json"));
     if let Some(parent) = out.parent() {
         fs::create_dir_all(parent)?;
     }
     fs::write(&out, text)?;
-    println!("Wrote {}: {} bytes, sha256 {}…", out.display(), data.len(), &sha[..12]);
+    println!(
+        "Wrote {}: {} bytes, sha256 {}…",
+        out.display(),
+        data.len(),
+        &sha[..12]
+    );
     Ok(())
 }
 
 fn make_zones(repo: &Repo, args: &Args) -> Result<(), Error> {
-    let base = args.positional().first().cloned().unwrap_or_else(|| "/usr/share/zoneinfo".into());
+    let base = args
+        .positional()
+        .first()
+        .cloned()
+        .unwrap_or_else(|| "/usr/share/zoneinfo".into());
     let base = Path::new(&base);
-    let read = |name: &str| fs::read_to_string(base.join(name)).map_err(|e| Error(format!("{}: {e}", base.join(name).display())));
+    let read = |name: &str| {
+        fs::read_to_string(base.join(name))
+            .map_err(|e| Error(format!("{}: {e}", base.join(name).display())))
+    };
     let map = zones::zones(&read("zone.tab")?, &read("tzdata.zi")?);
     let js = zones::zones_js(&map);
-    let out = args.value("--out").map(PathBuf::from).unwrap_or_else(|| repo.path("web/zones.js"));
+    let out = args
+        .value("--out")
+        .map(PathBuf::from)
+        .unwrap_or_else(|| repo.path("web/zones.js"));
     fs::write(&out, &js)?;
-    println!("Wrote {} ({} zones, {} KB)", out.display(), map.len(), kb(js.len()));
+    println!(
+        "Wrote {} ({} zones, {} KB)",
+        out.display(),
+        map.len(),
+        kb(js.len())
+    );
     Ok(())
 }
 
@@ -126,7 +184,9 @@ fn run() -> Result<(), Error> {
     let args = Args { list: all };
     let repo = match args.value("--root") {
         Some(r) => Repo::new(r),
-        None => Repo::find(&env::current_dir()?).ok_or(Error("not inside the Free My TV repository (use --root DIR)".into()))?,
+        None => Repo::find(&env::current_dir()?).ok_or(Error(
+            "not inside the Free My TV repository (use --root DIR)".into(),
+        ))?,
     };
     match command.as_str() {
         "webos-build" => build(&repo, &args, true),

@@ -10,12 +10,16 @@ pub const SOURCE: &str = "https://github.com/simbasjungles/free-my-tv";
 const DESCRIPTION: &str = "A fast, ad-free home screen: your apps on a glass shelf, the weather and prices, day and night.";
 
 pub fn sha256_hex(data: &[u8]) -> String {
-    Sha256::digest(data).iter().map(|b| format!("{b:02x}")).collect()
+    Sha256::digest(data)
+        .iter()
+        .map(|b| format!("{b:02x}"))
+        .collect()
 }
 
 /// The repository's JSON (with its final newline) for the version in `webos/appinfo.json`.
 pub fn repository(repo: &Repo, sha256: &str, size: u64) -> Result<String, Error> {
-    let app: Value = serde_json::from_str(&repo.read_string("webos/appinfo.json")?).map_err(|e| Error(e.to_string()))?;
+    let app: Value = serde_json::from_str(&repo.read_string("webos/appinfo.json")?)
+        .map_err(|e| Error(e.to_string()))?;
     let version = app["version"].as_str().unwrap_or_default();
     let manifest = json!({
         "id": app["id"],
@@ -41,13 +45,22 @@ pub fn repository(repo: &Repo, sha256: &str, size: u64) -> Result<String, Error>
             "manifest": manifest,
         }],
     });
-    Ok(dumps(&doc, Style { indent: Some(2), ..Style::DEFAULT }) + "\n")
+    Ok(dumps(
+        &doc,
+        Style {
+            indent: Some(2),
+            ..Style::DEFAULT
+        },
+    ) + "\n")
 }
 
 #[cfg(test)]
 mod tests {
     #[test]
     fn sha() {
-        assert_eq!(super::sha256_hex(b"hello"), "2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824");
+        assert_eq!(
+            super::sha256_hex(b"hello"),
+            "2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824"
+        );
     }
 }

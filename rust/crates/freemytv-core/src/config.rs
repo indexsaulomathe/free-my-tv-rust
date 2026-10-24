@@ -46,11 +46,21 @@ impl Config {
         let get = |k: &str| values.get(k).map(String::as_str).unwrap_or("");
         let or = |k: &str, d: &str| -> String {
             let v = get(k);
-            if v.is_empty() { d.to_string() } else { v.to_string() }
+            if v.is_empty() {
+                d.to_string()
+            } else {
+                v.to_string()
+            }
         };
         let number = |k: &str, d: &str| -> Result<String, Error> {
             let v = or(k, d);
-            if is_number(&v) { Ok(v) } else { Err(Error(format!("config.properties: {k} must be a number (got \"{v}\")"))) }
+            if is_number(&v) {
+                Ok(v)
+            } else {
+                Err(Error(format!(
+                    "config.properties: {k} must be a number (got \"{v}\")"
+                )))
+            }
         };
         Ok(Config {
             tmdb_key: get("tmdb_key").to_string(),
@@ -61,19 +71,34 @@ impl Config {
             language: or("language", "auto"),
             currency: or("currency", "USD"),
             temperature: or("temperature", "auto"),
-            show_crypto: values.get("show_crypto").map_or("true", |s| s.as_str()).to_lowercase() != "false",
-            hide_animation: values.get("hide_animation").map_or("false", |s| s.as_str()).to_lowercase() == "true",
-            hide_apps: get("hide_apps").split(',').map(str::trim).filter(|s| !s.is_empty()).map(String::from).collect(),
+            show_crypto: values
+                .get("show_crypto")
+                .map_or("true", |s| s.as_str())
+                .to_lowercase()
+                != "false",
+            hide_animation: values
+                .get("hide_animation")
+                .map_or("false", |s| s.as_str())
+                .to_lowercase()
+                == "true",
+            hide_apps: get("hide_apps")
+                .split(',')
+                .map(str::trim)
+                .filter(|s| !s.is_empty())
+                .map(String::from)
+                .collect(),
         })
     }
 
     /// Reads `path`, creating it from `config.example.properties` (next to it in the repository) when missing.
     pub fn read(path: &Path, example: &Path) -> Result<Config, Error> {
         if !path.exists() {
-            fs::copy(example, path).map_err(|e| Error(format!("can't create {}: {e}", path.display())))?;
+            fs::copy(example, path)
+                .map_err(|e| Error(format!("can't create {}: {e}", path.display())))?;
             eprintln!("Created config.properties: add your TMDB key and your city there (optional), then build again.");
         }
-        let text = fs::read_to_string(path).map_err(|e| Error(format!("can't read {}: {e}", path.display())))?;
+        let text = fs::read_to_string(path)
+            .map_err(|e| Error(format!("can't read {}: {e}", path.display())))?;
         Config::parse(&text)
     }
 
@@ -118,7 +143,7 @@ fn is_number(s: &str) -> bool {
         None => (s, None),
     };
     let digits = |p: &str| !p.is_empty() && p.chars().all(|c| c.is_ascii_digit());
-    digits(int) && frac.map_or(true, digits)
+    digits(int) && frac.is_none_or(digits)
 }
 
 #[cfg(test)]
@@ -129,7 +154,10 @@ mod tests {
     fn defaults() {
         let c = Config::parse("").unwrap();
         assert_eq!(c.tmdb_region, "US");
-        assert_eq!((c.latitude.as_str(), c.longitude.as_str()), ("40.7128", "-74.0060"));
+        assert_eq!(
+            (c.latitude.as_str(), c.longitude.as_str()),
+            ("40.7128", "-74.0060")
+        );
         assert!(c.show_crypto && !c.hide_animation && c.hide_apps.is_empty());
     }
 

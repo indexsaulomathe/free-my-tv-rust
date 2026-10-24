@@ -16,11 +16,21 @@ extern "C" {
 
 fn main() {
     let args: Vec<String> = std::env::args().skip(1).collect();
-    let status = Command::new(&args[0]).args(&args[1..]).stdout(Stdio::null()).stderr(Stdio::null()).status().expect("spawn");
+    let status = Command::new(&args[0])
+        .args(&args[1..])
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .status()
+        .expect("spawn");
     if !status.success() {
         exit(1);
     }
-    let mut u = Rusage { utime: [0; 2], stime: [0; 2], maxrss: 0, rest: [0; 13] };
+    let mut u = Rusage {
+        utime: [0; 2],
+        stime: [0; 2],
+        maxrss: 0,
+        rest: [0; 13],
+    };
     unsafe { getrusage(-1, &mut u) }; // RUSAGE_CHILDREN
     println!("{}", u.maxrss);
 }

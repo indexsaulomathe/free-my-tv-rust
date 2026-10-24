@@ -20,21 +20,36 @@ pub fn web_calls(text: &str) -> Vec<Vec<Option<String>>> {
     let mut out = Vec::new();
     let mut i = 0;
     while i < chars.len() {
-        let Some(name) = NAMES.iter().find(|n| starts_with(&chars, i, n) && chars.get(i + n.len()) == Some(&'(')) else {
+        let Some(name) = NAMES
+            .iter()
+            .find(|n| starts_with(&chars, i, n) && chars.get(i + n.len()) == Some(&'('))
+        else {
             i += 1;
             continue;
         };
         let end = i + name.len() + 1;
         // (?<![\w.$]) or (?<=\bI18N\.)
         let free = i == 0 || !(is_word(chars[i - 1]) || chars[i - 1] == '.' || chars[i - 1] == '$');
-        let on_i18n = i >= 5 && starts_with(&chars, i - 5, "I18N.") && (i == 5 || !is_word(chars[i - 6]));
+        let on_i18n =
+            i >= 5 && starts_with(&chars, i - 5, "I18N.") && (i == 5 || !is_word(chars[i - 6]));
         if !(free || on_i18n) {
             i += 1;
             continue;
         }
-        let line_start = chars[..i].iter().rposition(|&c| c == '\n').map_or(0, |p| p + 1);
-        let prefix: String = chars[line_start..i].iter().collect::<String>().trim_start().to_string();
-        if prefix.starts_with('*') || prefix.starts_with("//") || prefix.starts_with("/*") || prefix.ends_with("function ") {
+        let line_start = chars[..i]
+            .iter()
+            .rposition(|&c| c == '\n')
+            .map_or(0, |p| p + 1);
+        let prefix: String = chars[line_start..i]
+            .iter()
+            .collect::<String>()
+            .trim_start()
+            .to_string();
+        if prefix.starts_with('*')
+            || prefix.starts_with("//")
+            || prefix.starts_with("/*")
+            || prefix.ends_with("function ")
+        {
             i = end;
             continue;
         }
@@ -47,14 +62,9 @@ pub fn web_calls(text: &str) -> Vec<Vec<Option<String>>> {
 }
 
 fn starts_with(chars: &[char], at: usize, s: &str) -> bool {
-    let mut k = at;
-    for c in s.chars() {
-        if chars.get(k) != Some(&c) {
-            return false;
-        }
-        k += 1;
-    }
-    true
+    s.chars()
+        .enumerate()
+        .all(|(k, c)| chars.get(at + k) == Some(&c))
 }
 
 /// The raw arguments of the call whose `(` ends at `start`, and the index of its `)` (`java_args`).
@@ -154,7 +164,11 @@ fn unescape(raw: &str) -> String {
                 continue;
             }
         }
-        out.push(match c { 'n' => '\n', 't' => '\t', other => other });
+        out.push(match c {
+            'n' => '\n',
+            't' => '\t',
+            other => other,
+        });
         i += 2;
     }
     out
@@ -167,7 +181,8 @@ pub fn web_keys(web: &Path) -> Result<BTreeSet<String>, Error> {
         if !name.ends_with(".js") || name == "strings.js" {
             continue;
         }
-        let text = fs::read_to_string(web.join(&name)).map_err(|e| Error(format!("{name}: {e}")))?;
+        let text =
+            fs::read_to_string(web.join(&name)).map_err(|e| Error(format!("{name}: {e}")))?;
         for args in web_calls(&text) {
             if let Some(Some(key)) = args.first() {
                 if let Some((_, plain)) = key.split_once('|') {
@@ -194,9 +209,12 @@ pub fn catalogues(i18n: &Path, web: &Path) -> Result<Value, Error> {
     let keys = web_keys(web)?;
     let mut out = Map::new();
     for lang in languages(i18n)? {
-        let text = fs::read_to_string(i18n.join(format!("{lang}.json"))).map_err(|e| Error(format!("{lang}.json: {e}")))?;
-        let cat: Map<String, Value> = serde_json::from_str(&text).map_err(|e| Error(format!("{lang}.json: {e}")))?;
-        let mut pairs: Vec<(String, Value)> = cat.into_iter().filter(|(k, _)| keys.contains(k)).collect();
+        let text = fs::read_to_string(i18n.join(format!("{lang}.json")))
+            .map_err(|e| Error(format!("{lang}.json: {e}")))?;
+        let cat: Map<String, Value> =
+            serde_json::from_str(&text).map_err(|e| Error(format!("{lang}.json: {e}")))?;
+        let mut pairs: Vec<(String, Value)> =
+            cat.into_iter().filter(|(k, _)| keys.contains(k)).collect();
         pairs.sort_by(|a, b| a.0.cmp(&b.0));
         out.insert(lang, Value::Object(pairs.into_iter().collect()));
     }
@@ -208,7 +226,10 @@ mod tests {
     use super::*;
 
     fn keys(js: &str) -> Vec<Option<String>> {
-        web_calls(js).into_iter().map(|a| a.into_iter().next().flatten()).collect()
+        web_calls(js)
+            .into_iter()
+            .map(|a| a.into_iter().next().flatten())
+            .collect()
     }
 
     #[test]
@@ -216,10 +237,16 @@ mod tests {
         let js = "a = tr('Live TV'); b = I18N.trf(\"{n} min\", {n: 1}); c = x.tr('no'); d = $tr('no');\n\
                   // tr('comment')\n  * tr('doc')\nfunction tr(english) {}\ne = plural('plural|one:{n} a|other:{n} b', n);\n\
                   f = formatDate('format|h:mm a', at); g = tr(name); h = mytr('no');";
-        assert_eq!(keys(js), vec![
-            Some("Live TV".into()), Some("{n} min".into()), Some("plural|one:{n} a|other:{n} b".into()),
-            Some("format|h:mm a".into()), None,
-        ]);
+        assert_eq!(
+            keys(js),
+            vec![
+                Some("Live TV".into()),
+                Some("{n} min".into()),
+                Some("plural|one:{n} a|other:{n} b".into()),
+                Some("format|h:mm a".into()),
+                None,
+            ]
+        );
     }
 
     #[test]

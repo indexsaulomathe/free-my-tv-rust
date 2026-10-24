@@ -18,11 +18,23 @@ pub struct Style {
 
 impl Style {
     /// `json.dumps(x)`.
-    pub const DEFAULT: Style = Style { ascii: true, compact: false, indent: None };
+    pub const DEFAULT: Style = Style {
+        ascii: true,
+        compact: false,
+        indent: None,
+    };
     /// `json.dumps(x, ensure_ascii=False)`.
-    pub const UNICODE: Style = Style { ascii: false, compact: false, indent: None };
+    pub const UNICODE: Style = Style {
+        ascii: false,
+        compact: false,
+        indent: None,
+    };
     /// `json.dumps(x, ensure_ascii=False, separators=(',', ':'))`.
-    pub const UNICODE_COMPACT: Style = Style { ascii: false, compact: true, indent: None };
+    pub const UNICODE_COMPACT: Style = Style {
+        ascii: false,
+        compact: true,
+        indent: None,
+    };
 }
 
 /// `json.dumps(value, ...)` with the given style.
@@ -76,7 +88,7 @@ fn separator(out: &mut String, style: Style, level: usize, first: bool) {
                 out.push(',');
             }
             out.push('\n');
-            out.extend(std::iter::repeat(' ').take(n * level));
+            out.extend(std::iter::repeat_n(' ', n * level));
         }
         None if !first => out.push_str(if style.compact { "," } else { ", " }),
         None => {}
@@ -86,7 +98,7 @@ fn separator(out: &mut String, style: Style, level: usize, first: bool) {
 fn close(out: &mut String, style: Style, level: usize) {
     if let Some(n) = style.indent {
         out.push('\n');
-        out.extend(std::iter::repeat(' ').take(n * level));
+        out.extend(std::iter::repeat_n(' ', n * level));
     }
 }
 
@@ -124,26 +136,48 @@ mod tests {
 
     #[test]
     fn default_spacing() {
-        assert_eq!(dumps(&json!({"a": [1, true, null], "b": "x"}), Style::DEFAULT), r#"{"a": [1, true, null], "b": "x"}"#);
+        assert_eq!(
+            dumps(&json!({"a": [1, true, null], "b": "x"}), Style::DEFAULT),
+            r#"{"a": [1, true, null], "b": "x"}"#
+        );
     }
 
     #[test]
     fn compact() {
-        assert_eq!(dumps(&json!({"a": [1, 2], "b": {}}), Style::UNICODE_COMPACT), r#"{"a":[1,2],"b":{}}"#);
+        assert_eq!(
+            dumps(&json!({"a": [1, 2], "b": {}}), Style::UNICODE_COMPACT),
+            r#"{"a":[1,2],"b":{}}"#
+        );
     }
 
     #[test]
     fn indent_like_python() {
         let v = json!({"a": [1, {"b": []}], "c": "d"});
         let want = "{\n  \"a\": [\n    1,\n    {\n      \"b\": []\n    }\n  ],\n  \"c\": \"d\"\n}";
-        assert_eq!(dumps(&v, Style { ascii: true, compact: false, indent: Some(2) }), want);
+        assert_eq!(
+            dumps(
+                &v,
+                Style {
+                    ascii: true,
+                    compact: false,
+                    indent: Some(2)
+                }
+            ),
+            want
+        );
     }
 
     #[test]
     fn escapes() {
         let v = json!("São \"q\" \\ \n\u{1}\u{7f} 😀");
-        assert_eq!(dumps(&v, Style::DEFAULT), r#""S\u00e3o \"q\" \\ \n\u0001\u007f \ud83d\ude00""#);
-        assert_eq!(dumps(&v, Style::UNICODE), "\"São \\\"q\\\" \\\\ \\n\\u0001\u{7f} 😀\"");
+        assert_eq!(
+            dumps(&v, Style::DEFAULT),
+            r#""S\u00e3o \"q\" \\ \n\u0001\u007f \ud83d\ude00""#
+        );
+        assert_eq!(
+            dumps(&v, Style::UNICODE),
+            "\"São \\\"q\\\" \\\\ \\n\\u0001\u{7f} 😀\""
+        );
     }
 
     #[test]
