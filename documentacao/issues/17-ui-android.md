@@ -1,7 +1,7 @@
 ---
 title: "Avaliar conversão da interface Android para Rust"
 labels: [fase-3-interface, conversao-rust]
-status: a-fazer
+status: descartado
 ---
 
 **Origem:** HomeView, DreamView, SettingsActivity, Scene/Shaders

@@ -21,6 +21,12 @@ as mudanças ficam no README, em `documentacao/`, `tests/` e `rust/`.
 - Teste real em TV LG webOS: saída `probe_exit=42`; cópia por `cat` sobre SSH porque `scp` não existe na TV;
   executável removido de `/tmp` após o teste.
 
+## 2026-10-24: Android e interfaces ficam como estão (issues #15, #16, #17)
+- Protótipo JNI (`tests/bench/jni/`): `Recs.franchise` ficou 14,8× mais lento em Rust e `HomeData.parseWeather`
+  4,7× mais rápido, num caminho que roda a cada 30 minutos. Somando +357 KB por processador no APK, o NDK no build e o
+  fuso horário sem horário de verão, deu regressão: o Android continua em Java (#15).
+- Pela mesma regra, as interfaces (#16 `home.js`, #17 `HomeView`) não serão convertidas.
+
 ## 2026-10-24: lógica do app web volta para JavaScript (issue #22)
 - Revertida a #14: saíram `web/logic.js`, `web/logic_wasm.js`, as chamadas ao `Logic` em `data.js` e `strings.js`,
   o crate `freemytv-logic`, o `freemytv make-logic` e os testes e o benchmark do WASM. `web/` está de novo igual ao
@@ -100,4 +106,4 @@ as mudanças ficam no README, em `documentacao/`, `tests/` e `rust/`.
 - Saída idêntica à do Python. Ganho de 2,5× a 9× no tempo e de 3× a 4× na memória (veja `rust.md`).
 
 ### Pendente
-- Itens 13 e 15 a 17 (veja `rust.md`). O 14 foi revertido (#22).
+- Item 13 (veja `rust.md`). O 14 foi revertido (#22); 15 a 17 não serão feitos (regressão).

@@ -9,8 +9,8 @@ em [`alteracoes.md`](alteracoes.md).
 | Fase | O que | Status |
 |---|---|---|
 | 1. Ferramentas | Scripts Python de build, instalação e geração | Em andamento: 12 de 13 itens feitos |
-| 2. Lógica | Dados, formatação e regras (`web/data.js`, `HomeData`, `Recs`, `HomeMode`) → Rust compilado para WASM e JNI | Web avaliado e revertido (#14, #22: regressão); Android a avaliar (#15) |
-| 3. Interface | `home.js`, `HomeView` e afins | A avaliar: a interface depende do motor da TV, e o ganho precisa ser medido antes |
+| 2. Lógica | Dados, formatação e regras (`web/data.js`, `HomeData`, `Recs`, `HomeMode`) → Rust compilado para WASM e JNI | Avaliada: regressão na web (#14, revertida na #22) e no Android (#15). Fica em JS e Java |
+| 3. Interface | `home.js`, `HomeView` e afins | Não será feita: a fase 2 regrediu, e a interface depende ainda mais do motor da TV (#16, #17) |
 
 ### Limites conhecidos
 - **WebAssembly exige Chromium 57+.** webOS 3/4 e Tizen 3/4 (TVs de 2017 a 2019) não rodam WASM. Nessas TVs a
@@ -49,9 +49,9 @@ rust/
 | 12 | [fotos](issues/12-photos.md) | `tools/photos.py` | `freemytv photos` | ✅ (testado com um adb simulado) |
 | 13 | [arte e símbolos](issues/13-arte.md) | `make_art.py`, `make_symbols.py` | — | ⏳ baixa prioridade |
 | 14 | [lógica web](issues/14-logica-web.md) | `web/data.js`, `strings.js` | `freemytv-logic` (WASM) | ↩️ revertido (#22): regressão, fica em JS |
-| 15 | [lógica Android](issues/15-logica-android.md) | `HomeData`, `Recs`, `HomeMode` | JNI | ⏳ fase 2 |
-| 16 | [interface web](issues/16-ui-web.md) | `home.js` | — | ⏳ fase 3 |
-| 17 | [interface Android](issues/17-ui-android.md) | `HomeView` etc. | — | ⏳ fase 3 |
+| 15 | [lógica Android](issues/15-logica-android.md) | `HomeData`, `Recs`, `HomeMode` | JNI | ❌ regressão (protótipo medido) |
+| 16 | [interface web](issues/16-ui-web.md) | `home.js` | — | ❌ não será feita |
+| 17 | [interface Android](issues/17-ui-android.md) | `HomeView` etc. | — | ❌ não será feita |
 
 ## Paridade
 
@@ -256,3 +256,26 @@ e passar textos entre JS e WASM (codificar em UTF-8, copiar, decodificar, e `JSO
 mais que a conta. Na prática ninguém percebe: o pior caso são 31 µs a cada 30 minutos, e um quadro tem 16 ms. O
 pacote cresce 90 KB (`.ipk` de 663 para 753 KB) e o módulo reserva cerca de 1 MB de memória na TV. O ganho é ter
 uma única fonte da lógica em Rust, testada, que o Android (#15, JNI) pode usar também.
+
+## Fase 2 no Android: protótipo JNI (issue #15, não convertida)
+
+Antes de converter `HomeData`, `Recs` e `HomeMode`, um protótipo mediu duas funções reais do app em Java contra as
+mesmas em Rust chamadas pelo JNI (`tests/bench/jni/run.sh`; JDK 17 no computador, porque não há TV Android aqui).
+As respostas são iguais, conferidas pelo próprio protótipo.
+
+| Função | Java | Rust (JNI) | Rust / Java |
+|---|---:|---:|---:|
+| `Recs.franchise` (sempre que a tela pede as sugestões) | 33 ns | 490 ns | 14,8× mais lento |
+| `HomeData.parseWeather`, 48 h (a cada 30 min) | 60,8 µs | 13,0 µs | 4,7× mais rápido |
+
+**Análise:**
+- O único ganho está no `parseWeather`, que roda a cada 30 minutos: ~50 µs economizados, imperceptíveis. E é um
+  ganho parcial: o Rust usou um fuso fixo, e para acertar o horário de verão como o Java (`TimeZone`) teria que levar
+  o banco de fusos (mais tamanho) ou perguntar ao Java a cada hora (mais idas e voltas pelo JNI).
+- Nas funções pequenas, a ponte JNI (converter e copiar textos) custa mais que a conta: até 15× mais lento.
+- Custo fixo: +357 KB por processador no APK (ARM 32, ARM 64, x86, x86_64: até ~1,4 MB), o Android NDK no build e o
+  `build.sh` reescrito, numa base que hoje compila só com o SDK. Pesa nas TVs de 1 GB.
+
+**Decisão:** regressão, pela regra do projeto. O Android continua em Java. Como a fase 2 regrediu nas duas
+plataformas, a fase 3 (interfaces, #16 e #17) não será feita: ela depende ainda mais do navegador e do Canvas do
+Android, com mais idas e voltas e, nas TVs de 2017 a 2019, nem WebAssembly.

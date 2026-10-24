@@ -1,7 +1,7 @@
 ---
 title: "Converter lógica pura do Android para Rust (JNI)"
 labels: [fase-2-logica, conversao-rust]
-status: a-fazer
+status: descartado
 ---
 
 **Origem:** HomeData, Recs (parsing e regras), regras do HomeMode (mayTurnOff, listas)
