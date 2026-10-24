@@ -11,3 +11,4 @@ path = "src/main.rs"
 
 [dependencies]
 freemytv-core = { path = "../freemytv-core" }
+serde_json = { version = "1.0", features = ["preserve_order"] }

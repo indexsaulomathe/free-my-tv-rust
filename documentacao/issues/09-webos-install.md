@@ -1,7 +1,7 @@
 ---
 title: "Converter instalador LG e corrigir verificação da host key"
 labels: [fase-1-ferramentas,seguranca, conversao-rust]
-status: a-fazer
+status: feito
 ---
 
 **Origem:** webos/install.py

@@ -8,7 +8,7 @@ em [`alteracoes.md`](alteracoes.md).
 
 | Fase | O que | Status |
 |---|---|---|
-| 1. Ferramentas | Scripts Python de build, instalação e geração | Em andamento: 8 de 13 itens feitos |
+| 1. Ferramentas | Scripts Python de build, instalação e geração | Em andamento: 9 de 13 itens feitos |
 | 2. Lógica | Dados, formatação e regras (`web/data.js`, `HomeData`, `Recs`, `HomeMode`) → Rust compilado para WASM e JNI | A fazer |
 | 3. Interface | `home.js`, `HomeView` e afins | A avaliar: a interface depende do motor da TV, e o ganho precisa ser medido antes |
 
@@ -42,8 +42,8 @@ rust/
 | 06 | [pacote Samsung](issues/06-tizen-build.md) | `tizen/build.py` | `freemytv tizen-build` | ✅ (sem assinatura) |
 | 07 | [Homebrew](issues/07-homebrew-repo.md) | `tools/homebrew_repo.py` | `freemytv homebrew-repo` | ✅ |
 | 08 | [fusos](issues/08-make-zones.md) | `tools/make_zones.py` | `freemytv make-zones` | ✅ |
-| 09 | [instalador LG](issues/09-webos-install.md) | `webos/install.py` | `freemytv webos-install` | ⏳ próximo, com a correção da host key |
-| 10 | [instalador Samsung](issues/10-tizen-install.md) | `tizen/install.py` | `freemytv tizen-install` | ⏳ |
+| 09 | [instalador LG](issues/09-webos-install.md) | `webos/install.py` | `freemytv webos-install` | ✅ (com a correção da host key) |
+| 10 | [instalador Samsung](issues/10-tizen-install.md) | `tizen/install.py` | `freemytv tizen-install` | ⏳ próximo |
 | 11 | [validação de traduções](issues/11-translate-check.md) | `translate.py --check` | `freemytv translate-check` | ⏳ |
 | 12 | [fotos](issues/12-photos.md) | `tools/photos.py` | `freemytv photos` | ⏳ |
 | 13 | [arte e símbolos](issues/13-arte.md) | `make_art.py`, `make_symbols.py` | — | ⏳ baixa prioridade |
@@ -68,9 +68,14 @@ rust/target/release/freemytv webos-build --generic          # = python3 webos/bu
 rust/target/release/freemytv tizen-build                    # = python3 tizen/build.py
 rust/target/release/freemytv homebrew-repo FreeMyTV-webos.ipk
 rust/target/release/freemytv make-zones
+rust/target/release/freemytv webos-install 192.168.1.50   # = python3 webos/install.py (--uninstall remove)
 ```
 
-A instalação na TV continua sendo feita por `python3 webos/install.py <IP>` até a issue 09 ser concluída.
+`webos-install` usa a mesma chave do Python (`~/.ssh/freemytv_webos_<IP>`), então quem já instalou pelo Python não
+digita a passphrase de novo. Diferenças: a host key da TV fica em `~/.ssh/freemytv_webos_known_hosts` na primeira
+conexão e é conferida nas seguintes, e a passphrase é pedida pelo `ssh-keygen` (não aparece na linha de comando).
+Se o Developer Mode for reinstalado, a TV troca de host key e a instalação para com a dica do `ssh-keygen -R`.
+A instalação da Samsung continua sendo feita por `python3 tizen/install.py <IP>` até a issue 10 ser concluída.
 
 ## Benchmark (fase 1)
 

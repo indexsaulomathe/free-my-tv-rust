@@ -4,19 +4,21 @@
 //!     freemytv tizen-build [--generic | --config FILE] [--preview] [--out FILE]   # tizen/build.py (unsigned)
 //!     freemytv homebrew-repo FILE.ipk [--out FILE]                                # tools/homebrew_repo.py
 //!     freemytv make-zones [ZONEINFO_DIR] [--out FILE]                             # tools/make_zones.py
+//!     freemytv webos-install IP [--uninstall]                                     # webos/install.py
 //!
 //! Run it anywhere inside the repository (or pass --root DIR).
 
 use freemytv_core::config::Config;
-use freemytv_core::{homebrew, package, webapp, zones, Error, Repo};
+use freemytv_core::{homebrew, package, webapp, webos_install, zones, Error, Repo};
 use std::path::{Path, PathBuf};
 use std::{env, fs, process};
 
-const USAGE: &str = "usage: freemytv <webos-build|tizen-build|homebrew-repo|make-zones> [options]
+const USAGE: &str = "usage: freemytv <webos-build|tizen-build|homebrew-repo|make-zones|webos-install> [options]
   webos-build   [--generic | --config FILE] [--preview] [--out FILE]
   tizen-build   [--generic | --config FILE] [--preview] [--out FILE]
   homebrew-repo FILE.ipk [--out FILE]
   make-zones    [ZONEINFO_DIR] [--out FILE]
+  webos-install IP [--uninstall]   installs FreeMyTV-webos.ipk on an LG TV (builds it first if missing)
   --root DIR    the repository (default: found from the current folder)";
 
 struct Args {
@@ -174,6 +176,55 @@ fn make_zones(repo: &Repo, args: &Args) -> Result<(), Error> {
     Ok(())
 }
 
+fn home() -> Result<PathBuf, Error> {
+    env::var_os("HOME")
+        .or_else(|| env::var_os("USERPROFILE"))
+        .map(PathBuf::from)
+        .ok_or(Error("no home folder (HOME)".into()))
+}
+
+fn has(tool: &str) -> bool {
+    process::Command::new(tool)
+        .arg("-V")
+        .stdout(process::Stdio::null())
+        .stderr(process::Stdio::null())
+        .status()
+        .is_ok()
+}
+
+fn webos_install(repo: &Repo, args: &Args) -> Result<(), Error> {
+    let pos = args.positional();
+    let Some(ip) = pos.first().filter(|ip| webos_install::valid_ip(ip)) else {
+        eprintln!("usage: freemytv webos-install IP [--uninstall]");
+        process::exit(2);
+    };
+    if !has("ssh") || !has("ssh-keygen") {
+        return Err(Error("OpenSSH (ssh and ssh-keygen) is needed.".into()));
+    }
+    let appinfo: serde_json::Value = serde_json::from_slice(&repo.read("webos/appinfo.json")?)
+        .map_err(|e| Error(format!("webos/appinfo.json: {e}")))?;
+    let app_id = appinfo["id"].as_str().unwrap_or_default().to_string();
+    let home = home()?;
+    let tv = webos_install::Tv {
+        ip: ip.clone(),
+        key: webos_install::fetch_key(&home, ip)?,
+        known_hosts: webos_install::known_hosts(&home),
+    };
+    if args.flag("--uninstall") {
+        println!("{}", tv.uninstall(&app_id));
+        return Ok(());
+    }
+    let ipk = repo.path("FreeMyTV-webos.ipk");
+    if !ipk.exists() {
+        build(repo, args, true)?;
+    }
+    tv.install(&ipk, &app_id)?;
+    println!("Installed and open on the TV.");
+    println!("Tip: while Free My TV is open, hold a number key on the remote to open it with that key from anywhere.");
+    println!("Developer Mode lasts about 40 days: open the Developer Mode app now and then and press EXTEND.");
+    Ok(())
+}
+
 fn run() -> Result<(), Error> {
     let mut all: Vec<String> = env::args().skip(1).collect();
     if all.is_empty() || matches!(all[0].as_str(), "-h" | "--help" | "help") {
@@ -193,6 +244,7 @@ fn run() -> Result<(), Error> {
         "tizen-build" => build(&repo, &args, false),
         "homebrew-repo" => homebrew_repo(&repo, &args),
         "make-zones" => make_zones(&repo, &args),
+        "webos-install" => webos_install(&repo, &args),
         other => Err(Error(format!("unknown command {other:?}\n{USAGE}"))),
     }
 }

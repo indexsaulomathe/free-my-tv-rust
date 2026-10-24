@@ -18,7 +18,7 @@ Só HTTPS, e o Android bloqueia HTTP em texto claro (`usesCleartextTraffic=false
 | 1 | Android | O app exige a depuração ADB ligada o tempo todo (porta 5555 aberta para a rede local) e guarda uma chave ADB com poder de shell | Alta, se a rede não for confiável |
 | 2 | Android | Desativa apps da lista `DEBLOAT` com `pm disable-user`. Nada é desinstalado, e o modo Original reativa tudo | Baixa |
 | 3 | Android | Usa um serviço de acessibilidade, que só filtra teclas (`flagRequestFilterKeyEvents`) e não lê a tela | Baixa |
-| 4 | LG | `webos/install.py` usa `StrictHostKeyChecking=no` e busca a chave por HTTP (porta 9991). Alguém na rede pode se passar pela TV | Média |
+| 4 | LG | `webos/install.py` usa `StrictHostKeyChecking=no` e busca a chave por HTTP (porta 9991). Alguém na rede pode se passar pela TV | Média (corrigido na CLI em Rust, issue #9) |
 | 5 | LG | A chave SSH fica sem senha em `~/.ssh/freemytv_webos_<IP>` | Média |
 | 6 | LG | Com a autorização na TV, o app ganha controle pelo WebSocket `127.0.0.1:3000` | Baixa |
 | 7 | Todas | A chave TMDB fica embutida no pacote (`config.js`) | Baixa |
@@ -36,5 +36,5 @@ Só HTTPS, e o Android bloqueia HTTP em texto claro (`usesCleartextTraffic=false
 
 1. Desligar o **Key Server** na TV depois de instalar.
 2. Deixar a TV numa rede confiável, de preferência separada da rede de visitantes.
-3. Na CLI em Rust: verificar a host key da TV (salvar na primeira conexão e conferir nas seguintes) e guardar a chave
-   com permissão 0600. Veja [rust.md](rust.md).
+3. Usar `freemytv webos-install` em vez de `webos/install.py`: ele já verifica a host key da TV (salva na primeira conexão e conferida nas seguintes) e guarda a
+   chave com permissão 0600. Veja [rust.md](rust.md).
