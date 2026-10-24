@@ -16,6 +16,14 @@ fn is_word(c: char) -> bool {
 
 /// Every translatable call in one web file: the value of each call's arguments (None when not a string literal).
 pub fn web_calls(text: &str) -> Vec<Vec<Option<String>>> {
+    web_calls_at(text)
+        .into_iter()
+        .map(|(_, _, args)| args)
+        .collect()
+}
+
+/// The same calls with their line and function name (`web_calls` in translate.py).
+pub fn web_calls_at(text: &str) -> Vec<(usize, String, Vec<Option<String>>)> {
     let chars: Vec<char> = text.chars().collect();
     let mut out = Vec::new();
     let mut i = 0;
@@ -54,7 +62,12 @@ pub fn web_calls(text: &str) -> Vec<Vec<Option<String>>> {
             continue;
         }
         if let Some((args, _)) = call_args(&chars, end) {
-            out.push(args.iter().map(|a| string_value(a)).collect());
+            let line = chars[..i].iter().filter(|&&c| c == '\n').count() + 1;
+            out.push((
+                line,
+                name.to_string(),
+                args.iter().map(|a| string_value(a)).collect(),
+            ));
         }
         i = end;
     }
@@ -106,12 +119,17 @@ pub fn call_args(chars: &[char], start: usize) -> Option<(Vec<String>, usize)> {
 
 /// The value of an argument made only of string literals ('…' or "…") joined with `+`, else None (`java_string`).
 pub fn string_value(arg: &str) -> Option<String> {
+    literal_value(arg, &['"', '\''])
+}
+
+/// The same with only the given quotes (Java: only "…").
+pub fn literal_value(arg: &str, quotes: &[char]) -> Option<String> {
     let chars: Vec<char> = arg.trim().chars().collect();
     let mut raw = String::new();
     let mut i = 0;
     while i < chars.len() {
         let q = chars[i];
-        if q != '"' && q != '\'' {
+        if !quotes.contains(&q) {
             return None;
         }
         let mut j = i + 1;

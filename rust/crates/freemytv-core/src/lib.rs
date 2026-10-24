@@ -8,6 +8,7 @@
 //! | [`package`] | `webos/build.py` (.ipk) and `tizen/build.py` (.wgt, unsigned) |
 //! | [`homebrew`] | `tools/homebrew_repo.py` |
 //! | [`zones`] | `tools/make_zones.py` |
+//! | [`translate`] | `tools/translate.py --check` |
 //! | [`webos_install`] | `webos/install.py` |
 //! | [`tizen_install`] | `tizen/install.py` |
 //! | [`json`] | Python's `json.dumps`, so every file comes out byte for byte the same |
@@ -18,6 +19,7 @@ pub mod i18n;
 pub mod json;
 pub mod package;
 pub mod tizen_install;
+pub mod translate;
 pub mod webapp;
 pub mod webos_install;
 pub mod zones;

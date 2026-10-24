@@ -3,6 +3,15 @@
 Tudo o que este fork muda em relação ao upstream (`simbasjungles/free-my-tv`). O código original não foi alterado;
 as mudanças ficam em `documentacao/`, `tests/` e `rust/`.
 
+## 2026-10-24: validação das traduções em Rust (issue #11)
+- `freemytv translate-check` substitui `tools/translate.py --check`: extrai as chaves do Java (`Ui.tr`, `trf`,
+  `plural`, `datePattern`) e do `web/`, e valida todos os catálogos (chaves faltando ou obsoletas, placeholders,
+  plurais CLDR, padrões do SimpleDateFormat, `en.json` desatualizado). `--fill`, `--prune` e `--new` continuam no Python.
+- Saída idêntica à do Python, inclusive os avisos e as chaves escritas como o `repr` do Python: 2 testes de paridade
+  novos (`test_rust_parity.py`), um com os catálogos do repositório e outro com 9 tipos de erro de propósito.
+- `i18n.rs` ganhou `web_calls_at` (linha e função de cada chamada) e `literal_value` (Java aceita só aspas duplas).
+- 4 testes Rust novos. Benchmark: 9,2× mais rápido que o Python (`tests/bench/bench.py`).
+
 ## 2026-10-24: instalador Samsung em Rust (issue #10)
 - `freemytv tizen-install IP [--uninstall]` substitui `tizen/install.py`: o mesmo protocolo SDB (cabeçalho de 24
   bytes, OPEN/OKAY/WRTE/CLSE, `sync:` SEND/DATA/DONE), `0 vd_appinstall`, `0 was_execute` e as mesmas mensagens.
@@ -44,4 +53,4 @@ as mudanças ficam em `documentacao/`, `tests/` e `rust/`.
 - Saída idêntica à do Python. Ganho de 2,5× a 9× no tempo e de 3× a 4× na memória (veja `rust.md`).
 
 ### Pendente
-- Itens 11 a 17 (veja `rust.md`).
+- Itens 12 a 17 (veja `rust.md`).

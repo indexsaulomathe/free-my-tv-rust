@@ -65,6 +65,8 @@ def main():
          [BIN, 'homebrew-repo', ipk, '--out', os.path.join(tmp, 'r.json')]),
         ('Time zones (tools/make_zones.py)', [py, 'tools/make_zones.py'],
          [BIN, 'make-zones', '--out', os.path.join(tmp, 'r.js')]),
+        ('Translation check (tools/translate.py --check)', [py, 'tools/translate.py', '--check'],
+         [BIN, 'translate-check']),
     ]
     rows = []
     try:

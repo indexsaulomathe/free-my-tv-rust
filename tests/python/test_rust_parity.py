@@ -72,3 +72,50 @@ def test_zones(tmp_path, monkeypatch):
     zones.main()
     rust('make-zones', '--out', str(tmp_path / 'rs.js'))
     assert (tmp_path / 'web' / 'zones.js').read_bytes() == (tmp_path / 'rs.js').read_bytes()
+
+
+def copy_for_translate(dst):
+    import shutil
+    for d in ('app/src', 'app/assets/i18n', 'web'):
+        shutil.copytree(os.path.join(ROOT, d), dst / d)
+    (dst / 'tools').mkdir()
+    shutil.copy(os.path.join(ROOT, 'tools', 'translate.py'), dst / 'tools')
+
+
+def both_check(root):
+    py = subprocess.run(['python3', str(root / 'tools' / 'translate.py'), '--check'], capture_output=True, text=True)
+    rs = subprocess.run([BIN, 'translate-check', '--root', str(root)], capture_output=True, text=True)
+    return (py.returncode, py.stdout, py.stderr), (rs.returncode, rs.stdout, rs.stderr)
+
+
+def test_translate_check_clean(tmp_path):
+    copy_for_translate(tmp_path)
+    py, rs = both_check(tmp_path)
+    assert py == rs
+    assert rs[0] == 0
+
+
+def test_translate_check_problems(tmp_path):
+    import json
+    copy_for_translate(tmp_path)
+    i18n = tmp_path / 'app' / 'assets' / 'i18n'
+    pt = json.loads((i18n / 'pt.json').read_text(encoding='utf-8'))
+    keys = list(pt)
+    plural = next(k for k in keys if k.startswith('plural|'))
+    fmt = next(k for k in keys if k.startswith('format|'))
+    with_ph = next(k for k in keys if '{' in k and not k.startswith('plural|'))
+    del pt[keys[0]]                                  # missing
+    pt["it's \"obsolete\"\n"] = 'x'                  # obsolete, with quotes and a newline in its repr
+    pt[plural] = 'one:{n} só'                        # no "other"
+    pt[fmt] = "h:mm 'a"                              # unclosed quote
+    pt[with_ph] = 'sem placeholder'                  # placeholder mismatch
+    pt[keys[5]] = 3                                  # not a string
+    (i18n / 'pt.json').write_text(json.dumps(pt, ensure_ascii=False), encoding='utf-8')
+    en = json.loads((i18n / 'en.json').read_text(encoding='utf-8'))
+    en[keys[7]] = en[keys[7]] + ' (old)'             # out of date
+    (i18n / 'en.json').write_text(json.dumps(en, ensure_ascii=False), encoding='utf-8')
+    (i18n / 'es.json').write_text('[1, 2]', encoding='utf-8')
+    (tmp_path / 'web' / 'extra.js').write_text("var a = tr(name);\nvar b = tr('Brand new key');\n", encoding='utf-8')
+    py, rs = both_check(tmp_path)
+    assert py == rs
+    assert rs[0] == 1 and rs[1].count('\n') > 8

@@ -8,7 +8,7 @@ em [`alteracoes.md`](alteracoes.md).
 
 | Fase | O que | Status |
 |---|---|---|
-| 1. Ferramentas | Scripts Python de build, instalação e geração | Em andamento: 10 de 13 itens feitos |
+| 1. Ferramentas | Scripts Python de build, instalação e geração | Em andamento: 11 de 13 itens feitos |
 | 2. Lógica | Dados, formatação e regras (`web/data.js`, `HomeData`, `Recs`, `HomeMode`) → Rust compilado para WASM e JNI | A fazer |
 | 3. Interface | `home.js`, `HomeView` e afins | A avaliar: a interface depende do motor da TV, e o ganho precisa ser medido antes |
 
@@ -44,8 +44,8 @@ rust/
 | 08 | [fusos](issues/08-make-zones.md) | `tools/make_zones.py` | `freemytv make-zones` | ✅ |
 | 09 | [instalador LG](issues/09-webos-install.md) | `webos/install.py` | `freemytv webos-install` | ✅ (com a correção da host key) |
 | 10 | [instalador Samsung](issues/10-tizen-install.md) | `tizen/install.py` | `freemytv tizen-install` | ✅ (testado com uma TV simulada) |
-| 11 | [validação de traduções](issues/11-translate-check.md) | `translate.py --check` | `freemytv translate-check` | ⏳ próximo |
-| 12 | [fotos](issues/12-photos.md) | `tools/photos.py` | `freemytv photos` | ⏳ |
+| 11 | [validação de traduções](issues/11-translate-check.md) | `translate.py --check` | `freemytv translate-check` | ✅ |
+| 12 | [fotos](issues/12-photos.md) | `tools/photos.py` | `freemytv photos` | ⏳ próximo |
 | 13 | [arte e símbolos](issues/13-arte.md) | `make_art.py`, `make_symbols.py` | — | ⏳ baixa prioridade |
 | 14 | [lógica web](issues/14-logica-web.md) | `web/data.js`, `strings.js` | WASM | ⏳ fase 2 |
 | 15 | [lógica Android](issues/15-logica-android.md) | `HomeData`, `Recs`, `HomeMode` | JNI | ⏳ fase 2 |
@@ -70,6 +70,7 @@ rust/target/release/freemytv homebrew-repo FreeMyTV-webos.ipk
 rust/target/release/freemytv make-zones
 rust/target/release/freemytv webos-install 192.168.1.50   # = python3 webos/install.py (--uninstall remove)
 rust/target/release/freemytv tizen-install 192.168.1.50   # = python3 tizen/install.py (--uninstall remove)
+rust/target/release/freemytv translate-check              # = python3 tools/translate.py --check
 ```
 
 `webos-install` usa a mesma chave do Python (`~/.ssh/freemytv_webos_<IP>`), então quem já instalou pelo Python não
@@ -94,6 +95,10 @@ ferramentas rodam no computador, nunca na TV. 30 execuções por comando, median
 | Pacote Samsung `.wgt` (`--generic`) | 130,4 ms ± 24,3 | 31,2 ms ± 3,0 | 4,2× | 22,6 MB | 6,9 MB |
 | Homebrew `apps.json` | 22,3 ms ± 1,3 | 2,5 ms ± 0,2 | 9,0× | 14,4 MB | 4,1 MB |
 | Fusos `zones.js` | 24,3 ms ± 2,3 | 3,1 ms ± 0,2 | 7,9× | 12,8 MB | 3,6 MB |
+| Traduções `--check`¹ | 108,6 ms ± 10,8 | 11,9 ms ± 0,5 | 9,2× | 24,2 MB | 6,9 MB |
+
+¹ Medido depois, noutra máquina (Linux x86_64, Python 3, Rust 1.98, 15 execuções). A primeira versão em Rust era
+mais lenta que o Python (111 ms), porque recompilava as regex a cada chamada; agora elas são compiladas uma vez.
 
 **Leitura:**
 - Nos comandos pequenos, quase todo o ganho vem de não precisar iniciar o Python (cerca de 20 ms).

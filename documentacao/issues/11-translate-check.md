@@ -1,7 +1,7 @@
 ---
 title: "Converter validação das traduções (translate.py --check)"
 labels: [fase-1-ferramentas, conversao-rust]
-status: a-fazer
+status: feito
 ---
 
 **Origem:** tools/translate.py: extract, check, fits, valid_format, problems

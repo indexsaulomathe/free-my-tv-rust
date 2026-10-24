@@ -6,21 +6,25 @@
 //!     freemytv make-zones [ZONEINFO_DIR] [--out FILE]                             # tools/make_zones.py
 //!     freemytv webos-install IP [--uninstall]                                     # webos/install.py
 //!     freemytv tizen-install IP [--uninstall]                                     # tizen/install.py
+//!     freemytv translate-check                                                    # tools/translate.py --check
 //!
 //! Run it anywhere inside the repository (or pass --root DIR).
 
 use freemytv_core::config::Config;
-use freemytv_core::{homebrew, package, tizen_install, webapp, webos_install, zones, Error, Repo};
+use freemytv_core::{
+    homebrew, package, tizen_install, translate, webapp, webos_install, zones, Error, Repo,
+};
 use std::path::{Path, PathBuf};
 use std::{env, fs, process};
 
-const USAGE: &str = "usage: freemytv <webos-build|tizen-build|homebrew-repo|make-zones|webos-install|tizen-install> [options]
+const USAGE: &str = "usage: freemytv <webos-build|tizen-build|homebrew-repo|make-zones|webos-install|tizen-install|translate-check> [options]
   webos-build   [--generic | --config FILE] [--preview] [--out FILE]
   tizen-build   [--generic | --config FILE] [--preview] [--out FILE]
   homebrew-repo FILE.ipk [--out FILE]
   make-zones    [ZONEINFO_DIR] [--out FILE]
   webos-install IP [--uninstall]   installs FreeMyTV-webos.ipk on an LG TV (builds it first if missing)
   tizen-install IP [--uninstall]   installs the signed FreeMyTV-tizen.wgt on a Samsung TV
+  translate-check                  validates every catalogue against the code (exit 1 on problems)
   --root DIR    the repository (default: found from the current folder)";
 
 struct Args {
@@ -320,6 +324,20 @@ fn tizen_install(repo: &Repo, args: &Args) -> Result<(), Error> {
     Ok(())
 }
 
+fn translate_check(repo: &Repo) -> Result<(), Error> {
+    let (en, warnings) = translate::extract(&repo.root)?;
+    for w in warnings {
+        eprintln!("{w}");
+    }
+    let errors = translate::check(&repo.path("app/assets/i18n"), &en)?;
+    if errors.is_empty() {
+        println!("OK: all catalogues match the code ({} keys).", en.len());
+        return Ok(());
+    }
+    println!("{}", errors.join("\n"));
+    process::exit(1);
+}
+
 fn run() -> Result<(), Error> {
     let mut all: Vec<String> = env::args().skip(1).collect();
     if all.is_empty() || matches!(all[0].as_str(), "-h" | "--help" | "help") {
@@ -341,6 +359,7 @@ fn run() -> Result<(), Error> {
         "make-zones" => make_zones(&repo, &args),
         "webos-install" => webos_install(&repo, &args),
         "tizen-install" => tizen_install(&repo, &args),
+        "translate-check" => translate_check(&repo),
         other => Err(Error(format!("unknown command {other:?}\n{USAGE}"))),
     }
 }
