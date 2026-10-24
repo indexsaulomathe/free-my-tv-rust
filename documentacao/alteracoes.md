@@ -48,6 +48,12 @@ as mudanças ficam no README, em `documentacao/`, `tests/` e `rust/`.
 - Teste real em TV LG webOS: saída `probe_exit=42`; cópia por `cat` sobre SSH porque `scp` não existe na TV;
   executável removido de `/tmp` após o teste.
 
+## 2026-10-24: revisão de lógica e segurança da CLI em Rust (issue #28)
+- SDB (Samsung): limite de 1 MB por pacote e de 16 MB por saída de comando, e recusa de `max_data` até 8 bytes, para
+  que um aparelho se passando pela TV não derrube a CLI. Key Server (LG): resposta de no máximo 64 KB.
+- `webos-install` avisa quando o `config.properties` mudou depois do `.ipk` que vai instalar.
+- `seguranca.md`: riscos 8 a 11 e o resultado da revisão. Teste novo com um impostor simulado. Testado na TV LG.
+
 ## 2026-10-24: arte e símbolos ficam em Python (issue #13)
 - Protótipo `tests/bench/art/`: o `make_art.py` em Rust é 12× mais rápido (0,9 s contra 11 s), mas não reproduz as
   imagens publicadas (98,4% a 99,7% dos pixels a até 8 níveis; o critério era 99,9%), e o texto do banner fica ~1 px

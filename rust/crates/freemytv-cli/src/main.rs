@@ -200,6 +200,12 @@ fn has(tool: &str) -> bool {
         .is_ok()
 }
 
+/// Whether `a` was modified after `b` (false when either is missing).
+fn newer(a: &Path, b: &Path) -> bool {
+    let time = |p: &Path| fs::metadata(p).and_then(|m| m.modified()).ok();
+    matches!((time(a), time(b)), (Some(x), Some(y)) if x > y)
+}
+
 fn webos_install(repo: &Repo, args: &Args) -> Result<(), Error> {
     let pos = args.positional();
     let Some(ip) = pos.first().filter(|ip| webos_install::valid_ip(ip)) else {
@@ -225,6 +231,8 @@ fn webos_install(repo: &Repo, args: &Args) -> Result<(), Error> {
     let ipk = repo.path("FreeMyTV-webos.ipk");
     if !ipk.exists() {
         build(repo, args, true)?;
+    } else if newer(&repo.path("config.properties"), &ipk) {
+        eprintln!("Note: config.properties changed after FreeMyTV-webos.ipk was built; installing the older package (run webos-build first to use the new settings).");
     }
     tv.install(&ipk, &app_id)?;
     println!("Installed and open on the TV.");

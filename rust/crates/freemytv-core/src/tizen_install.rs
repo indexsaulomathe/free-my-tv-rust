@@ -14,6 +14,11 @@ use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 pub const PORT: u16 = 26101;
 /// What this side announces; sdbd keeps each packet within both sides' maximum.
 pub const MAX_DATA: u32 = 4096;
+/// The largest packet taken from the TV: sdbd keeps to the maximum both sides announced, so anything far above it is
+/// a broken or impostor device, not a reason to allocate gigabytes.
+pub const MAX_PACKET: usize = 1 << 20;
+/// The most a command's output may hold (an install's log is a few KB).
+pub const MAX_OUTPUT: usize = 16 << 20;
 /// Removing it on the TV itself.
 pub const ON_TV: &str = "Apps, Settings, Free My TV, Delete";
 
@@ -92,6 +97,12 @@ impl<S: Read + Write> Sdb<S> {
                 String::from_utf8_lossy(&cmd)
             )));
         }
+        // Each sync chunk carries an 8-byte header: a maximum that can't hold one is a broken device.
+        if max_data <= 8 {
+            return Err(Error(format!(
+                "the TV announced packets of {max_data} bytes"
+            )));
+        }
         sdb.max = max_data.min(MAX_DATA);
         sdb.banner = String::from_utf8_lossy(&data)
             .trim_end_matches('\0')
@@ -127,6 +138,11 @@ impl<S: Read + Write> Sdb<S> {
         let word = |i: usize| u32::from_le_bytes([h[i], h[i + 1], h[i + 2], h[i + 3]]);
         let cmd = [h[0], h[1], h[2], h[3]];
         let n = word(12) as usize;
+        if n > MAX_PACKET {
+            return Err(Error(format!(
+                "the TV sent a {n}-byte packet (more than {MAX_PACKET})"
+            )));
+        }
         let data = if n > 0 { self.recv(n)? } else { Vec::new() };
         Ok((cmd, word(4), word(8), data))
     }
@@ -139,10 +155,13 @@ impl<S: Read + Write> Sdb<S> {
                 self.okay.insert(local, remote);
             }
             b"WRTE" => {
-                self.inbox
-                    .entry(local)
-                    .or_default()
-                    .extend_from_slice(&data);
+                let inbox = self.inbox.entry(local).or_default();
+                if inbox.len() + data.len() > MAX_OUTPUT {
+                    return Err(Error(format!(
+                        "the TV sent more than {MAX_OUTPUT} bytes on one stream"
+                    )));
+                }
+                inbox.extend_from_slice(&data);
                 self.send(b"OKAY", local, remote, b"")?;
             }
             b"CLSE" => {
@@ -387,6 +406,56 @@ mod tests {
         assert!(install_result("cmd_ret:0").is_err()); // cmd_ret:0 comes after failures too
         let e = install_result("signed with a different certificate").unwrap_err();
         assert!(e.0.contains("Remove it on the TV"));
+    }
+
+    /// A transport that answers with fixed bytes and swallows what is sent.
+    struct Canned(std::io::Cursor<Vec<u8>>);
+    impl Read for Canned {
+        fn read(&mut self, b: &mut [u8]) -> std::io::Result<usize> {
+            self.0.read(b)
+        }
+    }
+    impl Write for Canned {
+        fn write(&mut self, b: &[u8]) -> std::io::Result<usize> {
+            Ok(b.len())
+        }
+        fn flush(&mut self) -> std::io::Result<()> {
+            Ok(())
+        }
+    }
+
+    fn header(cmd: &Cmd, arg0: u32, arg1: u32, len: u32) -> Vec<u8> {
+        let c = u32::from_le_bytes(*cmd);
+        [c, arg0, arg1, len, 0, c ^ 0xFFFF_FFFF]
+            .iter()
+            .flat_map(|v| v.to_le_bytes())
+            .collect()
+    }
+
+    #[test]
+    fn refuses_what_an_impostor_could_send() {
+        // A 4 GB packet: refused before allocating.
+        let huge = header(b"CNXN", 0x0100_0000, 4096, u32::MAX);
+        let e = Sdb::handshake(Canned(std::io::Cursor::new(huge)), |_, _| {})
+            .err()
+            .unwrap();
+        assert!(e.0.contains("byte packet"), "{}", e.0);
+        // A maximum too small for a sync chunk's header.
+        let tiny = packet(b"CNXN", 0x0100_0000, 8, b"device::x:\0");
+        let e = Sdb::handshake(Canned(std::io::Cursor::new(tiny)), |_, _| {})
+            .err()
+            .unwrap();
+        assert!(e.0.contains("announced packets of 8 bytes"), "{}", e.0);
+        // Endless output on one stream.
+        let mut stream = packet(b"CNXN", 0x0100_0000, 4096, b"device::x:\0");
+        stream.extend(packet(b"OKAY", 9, 1, b""));
+        let chunk = vec![b'x'; MAX_PACKET];
+        for _ in 0..(MAX_OUTPUT / MAX_PACKET + 1) {
+            stream.extend(packet(b"WRTE", 9, 1, &chunk));
+        }
+        let mut sdb = Sdb::handshake(Canned(std::io::Cursor::new(stream)), |_, _| {}).unwrap();
+        let e = sdb.shell("x", None, 5).err().unwrap();
+        assert!(e.0.contains("more than"), "{}", e.0);
     }
 
     /// A stand-in sdbd: answers CNXN, OPEN with OKAY, takes the pushed file and runs one shell command.

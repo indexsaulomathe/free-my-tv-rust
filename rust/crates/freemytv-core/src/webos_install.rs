@@ -17,6 +17,7 @@ use std::time::Duration;
 pub const TEMP: &str = "/media/developer/temp/freemytv.ipk";
 const SSH_PORT: &str = "9922";
 const KEY_SERVER_PORT: u16 = 9991;
+const MAX_KEY_RESPONSE: u64 = 64 * 1024;
 
 /// An IPv4 address written the way the Python accepts it (`^\d{1,3}(\.\d{1,3}){3}$`).
 pub fn valid_ip(ip: &str) -> bool {
@@ -122,8 +123,14 @@ fn download_key(ip: &str) -> Result<Vec<u8>, Error> {
     let mut s = TcpStream::connect_timeout(&addr, timeout)?;
     s.set_read_timeout(Some(timeout))?;
     write!(s, "GET /webos_rsa HTTP/1.0\r\nHost: {ip}\r\n\r\n")?;
+    // An RSA key is a few KB: more is a broken or impostor Key Server.
     let mut response = Vec::new();
-    s.read_to_end(&mut response)?;
+    s.take(MAX_KEY_RESPONSE + 1).read_to_end(&mut response)?;
+    if response.len() as u64 > MAX_KEY_RESPONSE {
+        return Err(Error(
+            "the Key Server's answer is too large for a key".into(),
+        ));
+    }
     Ok(http_body(&response)?.to_vec())
 }
 
