@@ -3,6 +3,14 @@
 Tudo o que este fork muda em relação ao upstream (`simbasjungles/free-my-tv`). O código original não foi alterado;
 as mudanças ficam no README, em `documentacao/`, `tests/` e `rust/`.
 
+## 2026-10-24: ativação das sugestões de filmes e séries (issue #27)
+- Confirmado que o app web já tem as abas Explore, Movies e Shows e usa TMDB para selecionar títulos dos serviços
+  instalados na TV; a chave local está vazia, portanto os builds genéricos não mostram sugestões.
+- README documenta como configurar a chave e a região sem publicá-las. O `.ipk` gerado inclui `config.js` com a chave
+  e também deve ficar privado.
+- Nenhum código do app ou configuração particular foi alterado. Instalação e teste na TV dependem da chave ser
+  colocada localmente e de aprovação antes de comandos remotos. Reversão: limpar `tmdb_key`, recompilar e reinstalar.
+
 ## 2026-10-24: nome `rust-free-my-tv` (issue #26)
 - Repositório no GitHub renomeado de `free-my-tv-rust` para `rust-free-my-tv`, preservando o vínculo de fork.
 - README e valor padrão do script de criação de issues atualizados para o novo nome. Identificadores internos do app e

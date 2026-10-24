@@ -33,6 +33,16 @@ rust/target/release/freemytv
 
 Run commands from the repository root. The CLI's usage output lists its commands and options. A project-specific `config.properties` is created by the build tools when needed. Set your location and, for recommendations, your own TMDB key there. Keep this file and signing keys out of Git.
 
+## Movie and series suggestions
+
+The app already has **Explore**, **Movies**, and **Shows** tabs. It selects trending and recent titles available through supported streaming apps installed on the TV. Suggestions stay off when `tmdb_key` is empty, as in generic builds.
+
+1. Get your own API key or API Read Access Token from [TMDB's API settings](https://www.themoviedb.org/settings/api).
+2. On your computer, edit the ignored `config.properties`: set `tmdb_key` to that credential and `tmdb_region` to your two-letter country code (for example, `BR`). Do not paste the credential into an issue, chat, commit, or command line.
+3. Rebuild the app **without** `--generic`, then reinstall it using the instructions for your TV below. On LG, the build command is `rust/target/release/freemytv webos-build`.
+
+The generated app package contains the credential in `config.js`; keep that package private too. If no suggestions appear after installation, check that the TV has a supported streaming app, the region is correct, and the TV can reach TMDB. To turn suggestions off again, clear `tmdb_key`, rebuild, and reinstall.
+
 ## Install
 
 These commands use a local `TV_IP` variable. Set it to your TV's address on your own computer; do not put addresses, credentials, or key files in a public issue.
