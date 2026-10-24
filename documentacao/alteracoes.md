@@ -3,6 +3,14 @@
 Tudo o que este fork muda em relação ao upstream (`simbasjungles/free-my-tv`). O código original não foi alterado;
 as mudanças ficam no README, em `documentacao/`, `tests/` e `rust/`.
 
+## 2026-10-24: About do repositório (issue #25)
+- Descrição no GitHub atualizada para identificar o fork e a conversão gradual das ferramentas para Rust.
+- Link de site do upstream removido do About deste fork; tópicos adicionados: `android-tv`, `google-tv`, `rust`,
+  `tizen` e `webos`.
+- Nenhum arquivo do app, vínculo de fork ou release foi alterado. Reversão: restaurar descrição, site e tópicos
+  anteriores nas configurações do repositório. A descrição anterior era “A fast, ad-free home screen for Google TV,
+  LG webOS and Samsung Tizen. One button to undo.”; o site anterior era `https://freemytv.io`; não havia tópicos.
+
 ## 2026-10-24: README do fork Rust (issue #24)
 - README reescrito para identificar o repositório como fork independente baseado em `simbasjungles/free-my-tv`.
 - Instalação e desenvolvimento agora apontam para este fork; comandos usam placeholders para endereços e perfis.
